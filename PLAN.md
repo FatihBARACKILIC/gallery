@@ -52,11 +52,12 @@ Android cihazdaki tüm medyayı (fotoğraf + video) yüksek performansla listele
 Her adım sonunda manuel test edilebilir bir durum hedefleniyor. Her adım kendi commit'i olacak.
 
 ### Adım 1 — Bağımlılıklar ve temel iskelet
-- `libs.versions.toml`'a Hilt, Room, Paging 3, Media3, Coil, Navigation Compose, WorkManager, Accompanist Permissions, KSP plugin'i ekle
-- `GalleryApp` (`@HiltAndroidApp`), Manifest'e ekle
-- `MainActivity`'i `@AndroidEntryPoint` yap, içine boş `NavHost` koy (tek "Photos" rotası, placeholder ekran)
-- 3 sekme barını (Photos / Albums / Trash) ekran iskeleti olarak koy (boş içerikler)
+- `libs.versions.toml`'a Room, Paging 3, Media3, Coil, Navigation Compose, WorkManager, Accompanist Permissions, KSP plugin'i ekle
+- `GalleryApp` (Application), Manifest'e ekle
+- `MainActivity` içine `NavHost` koy (3 rota: Photos / Albums / Trash)
+- 3 sekmeli `NavigationBar` ile ekran iskeletlerini bağla
 - **Test:** Uygulama derlenir ve açılır, sekmeler arası geçiş çalışır
+- ⚠ **Hilt bu adımda atlandı.** Sebebi ve revize koşulu için aşağıda "Ertelenmiş Kararlar" bölümüne bak. Step 2'ye geçmeden önce DI stratejisini netleştir.
 
 ### Adım 2 — İzin akışı ve MediaStore taraması
 - `PermissionGate` composable: API 33+ için `READ_MEDIA_IMAGES`+`READ_MEDIA_VIDEO`, API 31-32 için `READ_EXTERNAL_STORAGE`
@@ -126,6 +127,23 @@ Her adım sonunda manuel test edilebilir bir durum hedefleniyor. Her adım kendi
 | Sayfalama | Paging 3 | Cursor-tabanlı, milyonlarca öğe için tasarlanmış |
 | Async iş | WorkManager | Çöp kutusu temizliği için pil dostu, AndroidX |
 | İzin UI | Accompanist Permissions | İzin akışı boilerplate'ini azaltır |
+
+## Ertelenmiş Kararlar (Tech Debt)
+
+> Burası "şimdi yapmamayı seçtiğimiz, ama unutursak kod çorba olacak" şeylerin kaydı. Her madde net bir tetikleyici nokta ile yazılmalı.
+
+### Hilt (DI) — Step 2'de tekrar değerlendirilecek
+- **Şu anki durum (2026-06-13):** Hilt 2.59.2 sadece Kotlin metadata 2.3.0'a kadar destek veriyor; AGP 9.2.1 + Compose BOM 2026.05 Kotlin 2.4 metadata üretiyor. Hilt'i eklemek için ya AGP/Compose'u downgrade etmek ya da Hilt'in metadata 2.4 desteklemesini beklemek lazım.
+- **Step 1'de neden zararsız:** Bu adımda enjekte edilecek hiçbir şey yok (placeholder ekranlar). Hilt = 0 kazanç.
+- **Karar tetikleyicisi: Step 2 başlamadan ÖNCE.** İlk ViewModel + Repository yazılmadan önce şu üçünden birini seç ve commit'le:
+  1. Hilt ekosistemi düzelmiş → Hilt'i ekle (asıl plan), `@HiltAndroidApp` + `@HiltViewModel` + `@AndroidEntryPoint`'i geri koy.
+  2. Hâlâ kırık ve hızlı çözüm istiyorsak → **Koin** (saf Kotlin, codegen yok, metadata sorunu yok, ~30 dk kurulum).
+  3. Tek modül + az graph için → **manuel DI** (`GalleryApp` içinde lazy singleton + `ViewModelProvider.Factory`).
+- **Kırmızı çizgi:** Step 2 boyunca DI kararı verilmeden ad-hoc singleton/ServiceLocator dağıtmayın. Tek bir strateji seçildikten sonra ViewModel yazımı başlar. Aksi takdirde Step 5-10'a kadar her ekranda farklı bir wiring stili çıkar.
+
+### KSP / Build flags — Step 10'a kadar dokunma
+- `gradle.properties`'ta `android.builtInKotlin=false` + `android.newDsl=false`, `libs.versions.toml`'da standalone Kotlin + KSP 2.3.9 var. Sebep: KSP henüz AGP 9'un built-in Kotlin'iyle uyumlu değil ama Step 10'da Room codegen için KSP şart. Bunları temizlemeden önce KSP'nin AGP 9 built-in Kotlin desteğini doğrula.
+- Kotlin sürümü 2.4.x'e bağımsız olarak çıkabilir (Step 1 testinde KSP 2.3.9 + Kotlin 2.4.0 Step 1 için sorunsuz). Step 10'da @Entity eklendiğinde Room/KSP'nin Kotlin 2.4 metadata'sını sindirebildiğini tekrar test et; sindiremezse ya KSP 2.4.x'i bekle ya da Kotlin'i 2.3.21'e geri pinle.
 
 ## Riskler / Belirsizlikler
 

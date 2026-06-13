@@ -6,11 +6,23 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.res.stringResource
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.barackilic.gallery.ui.navigation.GalleryNavHost
+import com.barackilic.gallery.ui.navigation.TopLevelTab
 import com.barackilic.gallery.ui.theme.GalleryTheme
 
 class MainActivity : ComponentActivity() {
@@ -19,29 +31,58 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             GalleryTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                GalleryRoot()
             }
         }
     }
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
+private fun GalleryRoot() {
+    val navController = rememberNavController()
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = currentBackStackEntry?.destination
+
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        bottomBar = {
+            GalleryBottomBar(
+                currentDestination = currentDestination,
+                onTabSelected = { tab -> navController.navigateToTab(tab) },
+            )
+        },
+    ) { innerPadding ->
+        GalleryNavHost(
+            navController = navController,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        )
+    }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun GreetingPreview() {
-    GalleryTheme {
-        Greeting("Android")
+private fun GalleryBottomBar(
+    currentDestination: NavDestination?,
+    onTabSelected: (TopLevelTab) -> Unit,
+) {
+    NavigationBar {
+        TopLevelTab.entries.forEach { tab ->
+            val selected = currentDestination?.hasRoute(tab.destination::class) == true
+            NavigationBarItem(
+                selected = selected,
+                onClick = { onTabSelected(tab) },
+                icon = { Icon(tab.icon, contentDescription = null) },
+                label = { Text(stringResource(tab.labelRes)) },
+            )
+        }
+    }
+}
+
+private fun NavHostController.navigateToTab(tab: TopLevelTab) {
+    navigate(tab.destination) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
     }
 }
