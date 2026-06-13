@@ -3,4 +3,12 @@
     <string name="tab_photos">Photos</string>
     <string name="tab_albums">Albums</string>
     <string name="tab_trash">Trash</string>
+
+    <string name="permission_title">Access your media</string>
+    <string name="permission_initial">Gallery needs permission to read photos and videos on your device.</string>
+    <string name="permission_rationale">Without media access, the gallery has nothing to show. Please grant the permission.</string>
+    <string name="permission_denied_permanently">You denied media access. Open system settings to enable it.</string>
+    <string name="permission_grant">Grant access</string>
+    <string name="permission_open_settings">Open Settings</string>
 </resources>
+

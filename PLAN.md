@@ -57,7 +57,7 @@ Her adım sonunda manuel test edilebilir bir durum hedefleniyor. Her adım kendi
 - `MainActivity` içine `NavHost` koy (3 rota: Photos / Albums / Trash)
 - 3 sekmeli `NavigationBar` ile ekran iskeletlerini bağla
 - **Test:** Uygulama derlenir ve açılır, sekmeler arası geçiş çalışır
-- ⚠ **Hilt bu adımda atlandı.** Sebebi ve revize koşulu için aşağıda "Ertelenmiş Kararlar" bölümüne bak. Step 2'ye geçmeden önce DI stratejisini netleştir.
+- ⚠ **Hilt bu adımda atlandı.** Sebebi ve revize koşulu için aşağıda "Ertelenmiş Kararlar" bölümüne bak. **Step 3'e geçmeden önce** DI stratejisini netleştir (Step 2'de henüz ViewModel olmayacak).
 
 ### Adım 2 — İzin akışı ve MediaStore taraması
 - `PermissionGate` composable: API 33+ için `READ_MEDIA_IMAGES`+`READ_MEDIA_VIDEO`, API 31-32 için `READ_EXTERNAL_STORAGE`
@@ -132,14 +132,15 @@ Her adım sonunda manuel test edilebilir bir durum hedefleniyor. Her adım kendi
 
 > Burası "şimdi yapmamayı seçtiğimiz, ama unutursak kod çorba olacak" şeylerin kaydı. Her madde net bir tetikleyici nokta ile yazılmalı.
 
-### Hilt (DI) — Step 2'de tekrar değerlendirilecek
+### Hilt (DI) — Step 3'te tekrar değerlendirilecek
 - **Şu anki durum (2026-06-13):** Hilt 2.59.2 sadece Kotlin metadata 2.3.0'a kadar destek veriyor; AGP 9.2.1 + Compose BOM 2026.05 Kotlin 2.4 metadata üretiyor. Hilt'i eklemek için ya AGP/Compose'u downgrade etmek ya da Hilt'in metadata 2.4 desteklemesini beklemek lazım.
 - **Step 1'de neden zararsız:** Bu adımda enjekte edilecek hiçbir şey yok (placeholder ekranlar). Hilt = 0 kazanç.
-- **Karar tetikleyicisi: Step 2 başlamadan ÖNCE.** İlk ViewModel + Repository yazılmadan önce şu üçünden birini seç ve commit'le:
-  1. Hilt ekosistemi düzelmiş → Hilt'i ekle (asıl plan), `@HiltAndroidApp` + `@HiltViewModel` + `@AndroidEntryPoint`'i geri koy.
+- **Step 2'de neden zararsız:** İzin akışı + MediaStore taraması; ViewModel yok, UI yok. `MediaStoreSource`'u tek satırla constructor'dan kurarız.
+- **Karar tetikleyicisi: Step 3 başlamadan ÖNCE.** İlk `PhotosViewModel` yazılmadan önce şu üçünden birini seç ve commit'le:
+  1. Hilt ekosistemi düzelmiş (yeni release metadata 2.4'ü destekliyor) → Hilt'i ekle (asıl plan), `@HiltAndroidApp` + `@HiltViewModel` + `@AndroidEntryPoint`'i geri koy.
   2. Hâlâ kırık ve hızlı çözüm istiyorsak → **Koin** (saf Kotlin, codegen yok, metadata sorunu yok, ~30 dk kurulum).
-  3. Tek modül + az graph için → **manuel DI** (`GalleryApp` içinde lazy singleton + `ViewModelProvider.Factory`).
-- **Kırmızı çizgi:** Step 2 boyunca DI kararı verilmeden ad-hoc singleton/ServiceLocator dağıtmayın. Tek bir strateji seçildikten sonra ViewModel yazımı başlar. Aksi takdirde Step 5-10'a kadar her ekranda farklı bir wiring stili çıkar.
+  3. Tek modül + az graph için → **manuel DI** (`GalleryApp` içinde lazy singleton + `viewModel { initializer { ... } }`).
+- **Kırmızı çizgi:** Step 3 boyunca DI kararı verilmeden ad-hoc singleton/ServiceLocator dağıtmayın. Tek bir strateji seçildikten sonra ViewModel yazımı başlar. Aksi takdirde Step 5-10'a kadar her ekranda farklı bir wiring stili çıkar.
 
 ### KSP / Build flags — Step 10'a kadar dokunma
 - `gradle.properties`'ta `android.builtInKotlin=false` + `android.newDsl=false`, `libs.versions.toml`'da standalone Kotlin + KSP 2.3.9 var. Sebep: KSP henüz AGP 9'un built-in Kotlin'iyle uyumlu değil ama Step 10'da Room codegen için KSP şart. Bunları temizlemeden önce KSP'nin AGP 9 built-in Kotlin desteğini doğrula.

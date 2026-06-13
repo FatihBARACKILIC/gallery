@@ -41,7 +41,7 @@ core/      Constants, permission helpers, shared util
 
 | Concern | Choice |
 |---|---|
-| DI | **Deferred — see `PLAN.md` "Ertelenmiş Kararlar"** (must be decided before Step 2 wires the first ViewModel) |
+| DI | **Deferred — see `PLAN.md` "Ertelenmiş Kararlar"** (must be decided before Step 3 wires the first ViewModel; Step 2 doesn't need DI) |
 | UI | Jetpack Compose + Material3 (Material You, dynamic color), type-safe Navigation Compose (`@Serializable` routes) |
 | Async | Coroutines + Flow; `Dispatchers.IO` for MediaStore & Room |
 | Paging | Paging 3 over MediaStore cursor |
