@@ -18,13 +18,7 @@ output-metadata.json
 
 # IntelliJ
 *.iml
-.idea/caches
-.idea/libraries
-.idea/modules.xml
-.idea/workspace.xml
-.idea/navEditor.xml
-.idea/assetWizardSettings.xml
-misc.xml
+.idea/
 deploymentTargetDropDown.xml
 render.experimental.xml
 
