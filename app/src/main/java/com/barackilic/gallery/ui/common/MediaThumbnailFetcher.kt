@@ -36,6 +36,7 @@ class MediaThumbnailFetcher(
 
         // imageLoader is part of the Coil 3 Fetcher.Factory contract but unused here —
         // we read directly through ContentResolver.loadThumbnail.
+        @Suppress("UNUSED_PARAMETER")
         override fun create(
             data: MediaThumbRequest,
             options: Options,

@@ -20,7 +20,10 @@
 
     <string name="trash_title">Trash</string>
     <string name="trash_empty">Items you delete will appear here for 30 days.</string>
-    <string name="trash_selected_count">%1$d selected</string>
+    <plurals name="trash_selected_count">
+        <item quantity="one">%1$d selected</item>
+        <item quantity="other">%1$d selected</item>
+    </plurals>
     <string name="trash_restore">Restore</string>
     <string name="trash_delete_forever">Delete forever</string>
     <string name="trash_send_to">Move to trash</string>
