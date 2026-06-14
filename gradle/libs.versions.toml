@@ -17,7 +17,8 @@ navigationCompose = "2.9.8"
 workRuntime = "2.11.2"
 accompanistPermissions = "0.37.3"
 kotlinxSerializationJson = "1.11.0"
-koin = "4.0.4"
+koin = "4.2.1"
+telephoto = "0.19.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -68,6 +69,9 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 # Koin (DI)
 koin-android = { group = "io.insert-koin", name = "koin-android", version.ref = "koin" }
 koin-androidx-compose = { group = "io.insert-koin", name = "koin-androidx-compose", version.ref = "koin" }
+
+# Telephoto (viewer zoom + Coil 3 subsampling)
+telephoto-zoomable-image-coil3 = { group = "me.saket.telephoto", name = "zoomable-image-coil3", version.ref = "telephoto" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

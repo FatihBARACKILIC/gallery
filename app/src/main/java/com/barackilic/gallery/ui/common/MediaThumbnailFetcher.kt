@@ -34,6 +34,8 @@ class MediaThumbnailFetcher(
         private val resolver: ContentResolver,
     ) : Fetcher.Factory<MediaThumbRequest> {
 
+        // imageLoader is part of the Coil 3 Fetcher.Factory contract but unused here —
+        // we read directly through ContentResolver.loadThumbnail.
         override fun create(
             data: MediaThumbRequest,
             options: Options,

@@ -92,9 +92,9 @@ Her adım sonunda manuel test edilebilir bir durum hedefleniyor. Her adım kendi
 
 ### Adım 7 — Tam ekran görüntüleyici (foto)
 - `ViewerScreen`: `HorizontalPager`, başlangıç indeksi gridden gelir
-- Coil ile tam çözünürlük; zoom için v0.1'de basit `Modifier.pointerInput` (pinch + double-tap) — hızlı bir özel impl ya da küçük bir kütüphane (örn. `net.engawapg.lib:zoomable`) — kararı bu adımda netleştireceğim
+- **Zoom kararı (2026-06-14): Telephoto** (`me.saket.telephoto:zoomable-image-coil3`). Subsampling (`BitmapRegionDecoder`) sayesinde 4K/RAW görsellerde tek frame ~viewport kadar bellek kalır; engawapg/zoomable veya custom impl'de tüm görsel decode edilir (4K ≈ 33MB, 50MP RAW ≈ 200MB), HorizontalPager 3-5 sayfa cache'leyince OOM riski gerçek. Telephoto'nun `ZoomableAsyncImage` drop-in API'si Coil 3.x ile uyumlu; HorizontalPager + pinch zoom + double-tap + pan clamping built-in
 - Tek dokunuş: sistem barlarını gizle/göster (`WindowInsetsController`)
-- **Test:** Gridden bir fotoğrafa girilir, kaydırarak sonraki/önceki, sistem barları toggle
+- **Test:** Gridden bir fotoğrafa girilir, kaydırarak sonraki/önceki, sistem barları toggle, pinch ve double-tap zoom akıcı
 
 ### Adım 8 — Video oynatma
 - Viewer'da öğe video ise Media3 `PlayerView` (Compose AndroidView wrapper)
@@ -128,6 +128,7 @@ Her adım sonunda manuel test edilebilir bir durum hedefleniyor. Her adım kendi
 | Sayfalama | Paging 3 | Cursor-tabanlı, milyonlarca öğe için tasarlanmış |
 | Async iş | WorkManager | Çöp kutusu temizliği için pil dostu, AndroidX |
 | İzin UI | Accompanist Permissions | İzin akışı boilerplate'ini azaltır |
+| Viewer zoom | Telephoto (`zoomable-image-coil3`) | Subsampling = 4K/RAW'da OOM güvencesi; trust signals iyi (Saket Narayan/Cash App), network footprint sıfır; Coil 3 drop-in |
 
 ## Ertelenmiş Kararlar (Tech Debt)
 
@@ -148,9 +149,10 @@ Her adım sonunda manuel test edilebilir bir durum hedefleniyor. Her adım kendi
 - **Scoped storage silme/onay akışı:** `createTrashRequest` / `createDeleteRequest` her seferinde sistem onay dialog'u açar. Toplu işlemler tek dialog'da onaylanabilir (URI listesi), bunu UX'te göz önünde bulunduracağım. v0.1'de tek-öğe akışına odaklanıp toplu seçimi minimal tutacağım.
 - **HEIC / RAW formatları:** Cihaz Coil'a düzgün decoder verirse görünür; vermezse placeholder. v0.1'de RAW desteği hedef değil, ama görüntüde patlama olmamalı.
 - **1.000.000 öğe gerçek dünya testi:** Paging 3 + MediaStore cursor mimarisinde teorik olarak ölçeklenir, ama bunu sizin cihazınızda doğrulamadan "çözüldü" demeyeceğim. Stres testi için yapay bir senaryo gerekirse not edeceğim.
-- **Pinch-to-zoom kütüphanesi:** Viewer'da zoom için kendi impl mi yoksa küçük bir kütüphane (örn. `net.engawapg.lib:zoomable`) mu, Adım 7'de bir-iki cümlelik kararla netleştireceğim — sizin tercihinizi de soracağım.
+- ~~**Pinch-to-zoom kütüphanesi:** ...~~ **Kararlaştırıldı (Step 7): Telephoto** — subsampling 4K/RAW belleği için kritik (yukarıda Adım 7 ve Bağımlılık Seçimleri tablosuna bak).
 - **ContentObserver gecikmesi:** Bazı OEM'lerde MediaStore güncellemesi anında gelmiyor. v0.1'de "uygulama foreground'a dönünce yenile" fallback'i eklenecek.
-- **API 31-37 farkları:** `minSdk=31` olduğu için Photo Picker (API 34+) zorunlu değil; klasik izin akışı tüm sürümlerde çalışacak. API 34 cihazda "Selected photos only" senaryosu v0.2'ye bırakılabilir — şu an "tüm medya" izni isteyeceğiz.
+- **API 31-37 farkları:** `minSdk=31` olduğu için Photo Picker (API 34+) zorunlu değil; klasik izin akışı tüm sürümlerde çalışacak. API 34 cihazda "Selected photos only" senaryosu v0.2'ye bırakılabilir — şu an "tüm medya" izni isteyeceğiz. Manifest'e `READ_MEDIA_VISUAL_USER_SELECTED` deklarasyonu eklendi (Step 7 cleanup) — sistem partial-access verdiğinde lint susar, ama UX hâlâ "tümünü iste" akışında. v0.2'de "limited access banner + re-pick" eklenecek.
+- **Android Studio "Play Policy → Photos & Video Insights" lint'i:** Gallery'nin core use case'i tam olarak sürekli/sık medya erişimi olduğu için bu policy uyarısı geçerli ama bizim için "normal". Lint kod düzeyinde fix istemiyor — Play Console submission formunda (v1.0 hazırlığı) "Photos and Videos" declaration ile cevaplanır. v0.1'de IDE'de görünmesi normaldir.
 
 ## Başarı Kriterleri
 

@@ -10,6 +10,7 @@ import com.barackilic.gallery.ui.albums.AlbumsScreen
 import com.barackilic.gallery.ui.photos.BucketPhotosScreen
 import com.barackilic.gallery.ui.photos.PhotosScreen
 import com.barackilic.gallery.ui.trash.TrashScreen
+import com.barackilic.gallery.ui.viewer.ViewerScreen
 
 @Composable
 fun GalleryNavHost(
@@ -21,7 +22,18 @@ fun GalleryNavHost(
         startDestination = Destination.Photos,
         modifier = modifier,
     ) {
-        composable<Destination.Photos> { PhotosScreen() }
+        composable<Destination.Photos> {
+            PhotosScreen(
+                onItemClick = { mediaIndex, mediaId ->
+                    navController.navigate(
+                        Destination.Viewer(
+                            initialIndex = mediaIndex,
+                            mediaId = mediaId,
+                        ),
+                    )
+                },
+            )
+        }
         composable<Destination.Albums> {
             AlbumsScreen(
                 onAlbumClick = { album ->
@@ -35,6 +47,24 @@ fun GalleryNavHost(
             BucketPhotosScreen(
                 bucketId = route.bucketId,
                 title = route.name,
+                onBack = { navController.popBackStack() },
+                onItemClick = { mediaIndex, mediaId ->
+                    navController.navigate(
+                        Destination.Viewer(
+                            initialIndex = mediaIndex,
+                            mediaId = mediaId,
+                            bucketId = route.bucketId,
+                        ),
+                    )
+                },
+            )
+        }
+        composable<Destination.Viewer> { backStackEntry ->
+            val route: Destination.Viewer = backStackEntry.toRoute()
+            val bucketId = if (route.bucketId == Destination.Viewer.NO_BUCKET) null else route.bucketId
+            ViewerScreen(
+                initialIndex = route.initialIndex,
+                bucketId = bucketId,
                 onBack = { navController.popBackStack() },
             )
         }

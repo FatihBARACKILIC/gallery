@@ -7,6 +7,7 @@ import com.barackilic.gallery.domain.repository.AlbumRepository
 import com.barackilic.gallery.domain.repository.MediaRepository
 import com.barackilic.gallery.ui.albums.AlbumsViewModel
 import com.barackilic.gallery.ui.photos.PhotosViewModel
+import com.barackilic.gallery.ui.viewer.ViewerViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
@@ -21,4 +22,5 @@ val appModule = module {
     single<AlbumRepository> { AlbumRepositoryImpl(get()) }
     viewModel { params -> PhotosViewModel(get(), params.getOrNull<Long>()) }
     viewModel { AlbumsViewModel(get()) }
+    viewModel { params -> ViewerViewModel(get(), params.getOrNull<Long>()) }
 }

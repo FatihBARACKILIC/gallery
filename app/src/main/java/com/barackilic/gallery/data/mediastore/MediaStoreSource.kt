@@ -56,22 +56,6 @@ class MediaStoreSource(private val resolver: ContentResolver) {
         return if (bucketId != null) base + bucketId.toString() else base
     }
 
-    fun count(bucketId: Long? = null): Int {
-        val args = Bundle().apply {
-            putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection(bucketId))
-            putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, selectionArgs(bucketId))
-        }
-        resolver.query(
-            collection,
-            arrayOf(MediaStore.Files.FileColumns._ID),
-            args,
-            null,
-        )?.use { cursor ->
-            return cursor.count
-        }
-        return 0
-    }
-
     fun registerObserver(observer: ContentObserver) {
         resolver.registerContentObserver(collection, /* notifyForDescendants = */ true, observer)
     }

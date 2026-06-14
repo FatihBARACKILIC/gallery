@@ -8,7 +8,7 @@ Gallery is a performance-focused, ad-free, open-source Android gallery app built
 
 **Current status:** Building **v0.1 MVP** — see `PLAN.md` for the active step-by-step roadmap. Workflow is incremental: each numbered step in `PLAN.md` ends at a manually-testable state, the user tests on a real device, then commits. Do not start a step before the user approves it.
 
-**Hard constraint:** No third-party ad, analytics, or crash-reporter SDKs. All deps must come from AndroidX / JetBrains / Google Media3 / Coil. A clean `./gradlew app:dependencies` is part of v0.1 acceptance.
+**Hard constraint:** No third-party ad, analytics, or crash-reporter SDKs — ever. Other 3rd-party deps are evaluated case-by-case on trust signals (maintainer reputation, production usage, network footprint, transitive surface) because the app reads user photos. AndroidX / JetBrains / Google / Coil are the preferred ecosystem but not a hard requirement — Koin (Step 3) and Telephoto (Step 7) are accepted examples outside the list. A clean `./gradlew app:dependencies` is part of v0.1 acceptance.
 
 ## Build & Run Commands
 

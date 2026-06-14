@@ -4,11 +4,19 @@
     <!-- API 33+ media permissions -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <!-- API 34+ partial-access acknowledgement. v0.1 still requires full access at the
+         PermissionGate level; declaring this just tells the system we're aware of the
+         Selected Photos flow. Full partial-access UX (re-select button + filtered grid)
+         is v0.2 work. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <!-- API 31-32 fallback (Android 12, 12L) -->
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
+    <!-- Gallery is the device's primary media viewer — persistent broad access to shared
+         media is the core use case. The Play Policy "Photos & Videos" declaration is
+         handled at Play Console submission (v1.0 prep), not via a manifest property. -->
     <application
         android:name=".GalleryApp"
         android:allowBackup="true"

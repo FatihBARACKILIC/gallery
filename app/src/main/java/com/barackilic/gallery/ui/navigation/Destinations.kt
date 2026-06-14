@@ -21,6 +21,17 @@ sealed interface Destination {
 
     @Serializable
     data class AlbumPhotos(val bucketId: Long, val name: String) : Destination
+
+    @Serializable
+    data class Viewer(
+        val initialIndex: Int,
+        val mediaId: Long,
+        val bucketId: Long = NO_BUCKET,
+    ) : Destination {
+        companion object {
+            const val NO_BUCKET: Long = -1L
+        }
+    }
 }
 
 enum class TopLevelTab(

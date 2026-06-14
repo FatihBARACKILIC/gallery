@@ -37,7 +37,7 @@ class PhotosViewModel(
             .flatMapLatest { mode ->
                 cachedMedia.map { paging ->
                     paging
-                        .map<MediaItem, PhotoGridCell.Item> { PhotoGridCell.Item(it) }
+                        .map { PhotoGridCell.Item(it) }
                         .insertSeparators<PhotoGridCell.Item, PhotoGridCell> { before, after ->
                             headerBetween(before?.media, after?.media, mode)
                         }

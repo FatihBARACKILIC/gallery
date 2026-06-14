@@ -78,6 +78,9 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.androidx.compose)
 
+    // Telephoto (viewer zoom + Coil 3 subsampling)
+    implementation(libs.telephoto.zoomable.image.coil3)
+
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

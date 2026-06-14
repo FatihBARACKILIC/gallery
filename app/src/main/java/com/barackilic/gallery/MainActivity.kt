@@ -44,13 +44,17 @@ private fun GalleryRoot() {
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = currentBackStackEntry?.destination
 
+    val showBottomBar =
+        currentDestination?.hasRoute(Destination.Viewer::class) != true
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            GalleryBottomBar(
-                currentDestination = currentDestination,
-                onTabSelected = { tab -> navController.navigateToTab(tab) },
-            )
+            if (showBottomBar) {
+                GalleryBottomBar(
+                    currentDestination = currentDestination,
+                    onTabSelected = { tab -> navController.navigateToTab(tab) },
+                )
+            }
         },
     ) { innerPadding ->
         GalleryNavHost(
