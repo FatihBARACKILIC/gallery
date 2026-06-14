@@ -48,11 +48,6 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
 
-    // Room
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-    ksp(libs.androidx.room.compiler)
-
     // Paging 3
     implementation(libs.androidx.paging.runtime)
     implementation(libs.androidx.paging.compose)
@@ -67,9 +62,6 @@ dependencies {
     // Navigation Compose (type-safe routes)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.json)
-
-    // WorkManager
-    implementation(libs.androidx.work.runtime.ktx)
 
     // Permissions
     implementation(libs.accompanist.permissions)

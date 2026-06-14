@@ -3,6 +3,8 @@ package com.barackilic.gallery.ui.viewer
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,6 +16,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -94,6 +97,10 @@ fun ViewerScreen(
 
     var currentItem by remember { mutableStateOf<MediaItem?>(null) }
 
+    val trashLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult(),
+    ) { /* MediaStore observer drives the refresh; no app state to update here. */ }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -117,6 +124,9 @@ fun ViewerScreen(
             ViewerTopBar(
                 onBack = onBack,
                 onShare = currentItem?.let { item -> { shareMediaItem(context, item) } },
+                onTrash = currentItem?.let { item ->
+                    { trashLauncher.launch(viewModel.buildTrashRequest(item)) }
+                },
                 modifier = Modifier.statusBarsPadding(),
             )
         }
@@ -143,9 +153,12 @@ private fun ViewerPager(
     ) { items.itemCount }
 
     LaunchedEffect(pagerState, player) {
-        snapshotFlow { pagerState.currentPage }
+        // itemCount is part of the key so the effect re-runs when the underlying
+        // paging list shrinks (e.g. an item was trashed). Without it, page=N may
+        // still hold a stale MediaItem after invalidation.
+        snapshotFlow { pagerState.currentPage to items.itemCount }
             .distinctUntilChanged()
-            .collect { page ->
+            .collect { (page, _) ->
                 val current = items.peek(page)
                 onCurrentItemChanged(current)
                 if (current?.type == MediaType.Video) {
@@ -251,6 +264,7 @@ private fun VideoPage(
 private fun ViewerTopBar(
     onBack: () -> Unit,
     onShare: (() -> Unit)?,
+    onTrash: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     TopAppBar(
@@ -270,6 +284,15 @@ private fun ViewerTopBar(
                     Icon(
                         imageVector = Icons.Outlined.Share,
                         contentDescription = stringResource(R.string.share),
+                        tint = Color.White,
+                    )
+                }
+            }
+            if (onTrash != null) {
+                IconButton(onClick = onTrash) {
+                    Icon(
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = stringResource(R.string.trash_send_to),
                         tint = Color.White,
                     )
                 }

@@ -9,6 +9,7 @@ import android.provider.MediaStore
 import com.barackilic.gallery.domain.model.Album
 import com.barackilic.gallery.domain.model.MediaItem
 import com.barackilic.gallery.domain.model.MediaType
+import com.barackilic.gallery.domain.model.TrashedItem
 
 class MediaStoreSource(private val resolver: ContentResolver) {
 
@@ -23,6 +24,12 @@ class MediaStoreSource(private val resolver: ContentResolver) {
         MediaStore.Files.FileColumns.DURATION,
         MediaStore.Files.FileColumns.BUCKET_ID,
         MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME,
+    )
+
+    private val trashProjection = arrayOf(
+        MediaStore.Files.FileColumns._ID,
+        MediaStore.Files.FileColumns.MEDIA_TYPE,
+        MediaStore.Files.FileColumns.DATE_EXPIRES,
     )
 
     private val albumProjection = arrayOf(
@@ -105,6 +112,49 @@ class MediaStoreSource(private val resolver: ContentResolver) {
             }
         }
         return result
+    }
+
+    fun queryTrashed(): List<TrashedItem> {
+        val args = Bundle().apply {
+            putString(
+                ContentResolver.QUERY_ARG_SQL_SELECTION,
+                "${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (?, ?)",
+            )
+            putStringArray(
+                ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS,
+                arrayOf(
+                    MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
+                    MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString(),
+                ),
+            )
+            putString(
+                ContentResolver.QUERY_ARG_SQL_SORT_ORDER,
+                "${MediaStore.Files.FileColumns.DATE_EXPIRES} DESC, " +
+                    "${MediaStore.Files.FileColumns._ID} DESC",
+            )
+            // Trashed and pending rows are hidden by default; opt into trashed-only here.
+            putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_ONLY)
+        }
+        val results = ArrayList<TrashedItem>()
+        resolver.query(collection, trashProjection, args, null)?.use { c ->
+            val idCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
+            val typeCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
+            val expiresCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_EXPIRES)
+            while (c.moveToNext()) {
+                val mediaType = when (c.getInt(typeCol)) {
+                    MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO -> MediaType.Video
+                    else -> MediaType.Image
+                }
+                // DATE_EXPIRES is in seconds (epoch); convert to ms for consistency.
+                val expires = c.getLong(expiresCol).takeIf { it > 0 }?.let { it * 1000L }
+                results += TrashedItem(
+                    mediaId = c.getLong(idCol),
+                    type = mediaType,
+                    expiresAtMillis = expires,
+                )
+            }
+        }
+        return results
     }
 
     fun queryAlbums(): List<Album> {
