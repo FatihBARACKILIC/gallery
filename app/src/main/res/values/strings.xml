@@ -10,5 +10,9 @@
     <string name="permission_denied_permanently">You denied media access. Open system settings to enable it.</string>
     <string name="permission_grant">Grant access</string>
     <string name="permission_open_settings">Open Settings</string>
+
+    <string name="grouping_day">Day</string>
+    <string name="grouping_month">Month</string>
+    <string name="grouping_year">Year</string>
 </resources>
 
