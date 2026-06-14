@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId = "com.barackilic.gallery"
-        minSdk = 31
+        minSdk = 30
         targetSdk = 37
         versionCode = 1
         versionName = "1.0"
