@@ -1,6 +1,8 @@
 package com.barackilic.gallery.ui.viewer
 
 import android.app.Activity
+import android.content.Context
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -12,6 +14,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -89,6 +92,8 @@ fun ViewerScreen(
     var systemBarsVisible by rememberSaveable { mutableStateOf(true) }
     ImmersiveSystemBars(visible = systemBarsVisible)
 
+    var currentItem by remember { mutableStateOf<MediaItem?>(null) }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -100,6 +105,7 @@ fun ViewerScreen(
             player = player,
             onToggleBars = { systemBarsVisible = !systemBarsVisible },
             onVideoPageShown = { systemBarsVisible = true },
+            onCurrentItemChanged = { currentItem = it },
             modifier = Modifier.fillMaxSize(),
         )
         AnimatedVisibility(
@@ -110,6 +116,7 @@ fun ViewerScreen(
         ) {
             ViewerTopBar(
                 onBack = onBack,
+                onShare = currentItem?.let { item -> { shareMediaItem(context, item) } },
                 modifier = Modifier.statusBarsPadding(),
             )
         }
@@ -123,6 +130,7 @@ private fun ViewerPager(
     player: ExoPlayer,
     onToggleBars: () -> Unit,
     onVideoPageShown: () -> Unit,
+    onCurrentItemChanged: (MediaItem?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val itemCount = items.itemCount
@@ -139,6 +147,7 @@ private fun ViewerPager(
             .distinctUntilChanged()
             .collect { page ->
                 val current = items.peek(page)
+                onCurrentItemChanged(current)
                 if (current?.type == MediaType.Video) {
                     val mediaId = current.id.toString()
                     if (player.currentMediaItem?.mediaId != mediaId) {
@@ -241,6 +250,7 @@ private fun VideoPage(
 @Composable
 private fun ViewerTopBar(
     onBack: () -> Unit,
+    onShare: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     TopAppBar(
@@ -254,11 +264,35 @@ private fun ViewerTopBar(
                 )
             }
         },
+        actions = {
+            if (onShare != null) {
+                IconButton(onClick = onShare) {
+                    Icon(
+                        imageVector = Icons.Outlined.Share,
+                        contentDescription = stringResource(R.string.share),
+                        tint = Color.White,
+                    )
+                }
+            }
+        },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = Color.Black.copy(alpha = 0.5f),
         ),
         modifier = modifier,
     )
+}
+
+private fun shareMediaItem(context: Context, item: MediaItem) {
+    val mime = when (item.type) {
+        MediaType.Image -> "image/*"
+        MediaType.Video -> "video/*"
+    }
+    val send = Intent(Intent.ACTION_SEND).apply {
+        type = mime
+        putExtra(Intent.EXTRA_STREAM, item.contentUri())
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }
+    context.startActivity(Intent.createChooser(send, null))
 }
 
 @Composable
