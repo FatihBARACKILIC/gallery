@@ -1,12 +1,12 @@
 # PLAN.md — v0.1 MVP
 
 ## Görev
-Android cihazdaki tüm medyayı (fotoğraf + video) yüksek performansla listeleyen, tam ekran görüntüleyici, basit video oynatıcı, paylaşma ve 30 günlük çöp kutusu içeren bir galeri uygulamasının v0.1 MVP sürümünü inşa etmek. Üçüncü parti reklam / takip kütüphanesi kullanılmayacak; tüm bağımlılıklar AndroidX / JetBrains / Google Media3 ekosisteminden seçilecek.
+Android cihazdaki tüm medyayı (fotoğraf + video) yüksek performansla listeleyen, tam ekran görüntüleyici, basit video oynatıcı, paylaşma ve 30 günlük çöp kutusu içeren bir galeri uygulamasının v0.1 MVP sürümünü inşa etmek. Üçüncü parti reklam / takip / crash-reporter kütüphanesi kullanılmayacak. Diğer 3rd-party bağımlılıklar trust signals'a göre değerlendirilir (bkz. `CLAUDE.md` → Hard constraint); Koin (Adım 3) ve Telephoto (Adım 7) bu yolla kabul edildi. minSdk = 30 (Android 11+).
 
 ## Etkilenen Dosyalar
 
 ### Değişecek / Yeni oluşturulacak
-- `gradle/libs.versions.toml` — yeni bağımlılıklar (Koin, Room, Paging 3, Media3, Coil, Navigation Compose, WorkManager, Accompanist Permissions, KSP)
+- `gradle/libs.versions.toml` — yeni bağımlılıklar (Koin, Paging 3, Media3, Coil, Navigation Compose, Accompanist Permissions, Telephoto; KSP plugin alias hazır tutulur)
 - `build.gradle.kts` (root) — KSP plugin alias'ı
 - `app/build.gradle.kts` — yeni plugin'ler, dependency'ler, KSP konfigürasyonu
 - `app/src/main/AndroidManifest.xml` — `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO`, `POST_NOTIFICATIONS`, `FileProvider`, `Application` sınıfı, `MainActivity` `singleTop`
@@ -16,17 +16,15 @@ Android cihazdaki tüm medyayı (fotoğraf + video) yüksek performansla listele
   - `MainActivity.kt` — NavHost (Koin Compose ile ViewModel injection)
   - `core/di/AppModule.kt` — Koin modülü (`single` + `viewModel` DSL)
   - `core/` — sabitler, ortak yardımcılar, permission yardımcıları
-  - `data/mediastore/` — `MediaStoreSource`, `MediaPagingSource`, `ContentObserver`
-  - `data/db/` — Room: `TrashedItemDao`, `TrashedItemEntity`, `GalleryDatabase`
+  - `data/mediastore/` — `MediaStoreSource`, `MediaPagingSource`, `TrashMediaActions`, `ContentObserver` helpers
   - `data/repository/` — `MediaRepository`, `AlbumRepository`, `TrashRepository`
-  - `domain/model/` — `MediaItem`, `Album`, `MediaType`
+  - `domain/model/` — `MediaItem`, `Album`, `MediaType`, `TrashedItem`
   - `ui/navigation/` — `NavGraph`, rota sabitleri
   - `ui/photos/` — fotoğraf+video grid ekranı, ViewModel
   - `ui/albums/` — albüm listesi + albüm içi ekran, ViewModel
   - `ui/viewer/` — tam ekran pager, foto görüntüleyici, video player, ViewModel
   - `ui/trash/` — çöp kutusu ekranı, ViewModel
   - `ui/common/` — ortak composable'lar (MediaThumb, DurationBadge, SectionHeader, PermissionGate)
-  - `worker/TrashCleanupWorker.kt`
 
 ### Değişmeyecek
 - Gradle wrapper dosyaları, `settings.gradle.kts`
@@ -42,11 +40,11 @@ Android cihazdaki tüm medyayı (fotoğraf + video) yüksek performansla listele
 - **Veri kaynakları:**
   - `MediaStore` (sistemin SQLite indeksi) — milyonlarca öğeyi cursor + Paging 3 ile tarayacak; **kendi tarayıcımızı yazmayacağız.** Bu, "ilk açılışta saatlerce bekleme" sorununun çözümüdür: sistem zaten indekslemiş.
   - `ContentObserver` — yeni medya eklendiğinde paging kaynağını invalidate eder (canlı güncelleme)
-  - Room — sadece çöp kutusu meta verisi (silinme zamanı, orijinal `BUCKET_ID`, MediaStore URI)
+  - Çöp kutusu için de MediaStore (`QUERY_ARG_MATCH_TRASHED`) source-of-truth; v0.1'de ek bir veritabanı yok.
 - **Görsel yükleme:** Coil 3 — `MediaStore.loadThumbnail` (API 29+) ile küçük thumb'lar, bellek + disk cache
 - **Video:** Media3 (ExoPlayer) — viewer'da tek `ExoPlayer` instance, lifecycle-aware
 - **Sayfalama:** Paging 3 — `MediaStore` cursor üzerinden `PagingSource`; LazyVerticalGrid içinde
-- **Çöp kutusu stratejisi:** `MediaStore.createTrashRequest()` (sistem `IS_TRASHED` flag'ı) + Room'da timestamp; 30 gün sonra `WorkManager` periyodik işi `createDeleteRequest()` ile kalıcı siler. Bu sayede dosya kullanıcı klasöründe kalır, scoped storage uyumlu ve geri yükleme `IS_TRASHED=0` ile tek satırdır.
+- **Çöp kutusu stratejisi:** MediaStore source-of-truth. Soft delete `createTrashRequest()` ile (`IS_TRASHED=1` + dosya `.trashed-<ts>-<name>`'e rename). Liste `QUERY_ARG_MATCH_TRASHED = MATCH_ONLY` query'siyle — herhangi bir uygulamadan silinmiş tüm öğeler görünür. Restore `createTrashRequest(value=false)`, kalıcı silme `createDeleteRequest()`. Tüm mutating işlemler `IntentSender` üzerinden sistem onay dialog'u gerektirir. 30 günlük otomatik kalıcı silme Android 11+'da MediaStore tarafından garanti edilir (`DATE_EXPIRES`) — uygulama tarafı worker yok.
 
 ## Uygulama Adımları
 
@@ -108,14 +106,14 @@ Her adım sonunda manuel test edilebilir bir durum hedefleniyor. Her adım kendi
 - **Test:** Tek foto/video paylaşımı diğer uygulamalara açılır
 
 ### Adım 10 — Çöp kutusu (soft delete + restore + 30 gün otomatik)
-- `TrashRepository`:
-  - Sil: `MediaStore.createTrashRequest([uri], true)` → `IntentSender` UI'a → kullanıcı onayı → Room'a `(uri, trashedAt = now)` insert
-  - Liste: Room'dan oku, her satır için MediaStore'dan thumbnail
-  - Geri yükle: `createTrashRequest([uri], false)` + Room'dan sil
-- `TrashScreen`: grid + uzun bas → çoklu seçim → "Restore" / "Delete forever"
-- `TrashCleanupWorker` (WorkManager periyodik, 24 saat): `trashedAt < now - 30d` olanlar için `createDeleteRequest`
-- Viewer'da çöp kutusu ikonu
-- **Test:** Sil → Trash sekmesinde görünür → Restore çalışır; sistem ayarlarından manuel saat ileri al ve worker'ı tetikleyerek 30 gün senaryosunu test et
+- `TrashMediaActions`: `createTrashRequest` / `createDeleteRequest` `PendingIntent` builder'ları. **Tipli koleksiyon URI'leri** (`MediaStore.Images.Media` / `MediaStore.Video.Media`) kullanır; jenerik `Files` URI bu request API'ler tarafından reddedilir ("All requested items must be Media items").
+- `TrashRepository`: `MediaStoreSource.queryTrashed()` (`QUERY_ARG_MATCH_TRASHED = MATCH_ONLY`) üzerinde `ContentObserver` tick'i → conflate → IO query → `Flow<List<TrashedItem>>`.
+- Domain `TrashedItem(mediaId, type, expiresAtMillis)` — Android-bağımsız.
+- Viewer üst bar'a çöp ikonu — `viewModel.buildTrashRequest(item)` → `StartIntentSenderForResult` → onay → MediaStore observer otomatik refresh.
+- `TrashScreen`: 3-col `LazyVerticalGrid`, `combinedClickable` tap/long-press → selection toggle, üst app bar selection moduna geçer (sayı + Restore + DeleteForever ikonları). `BackHandler` selection'ı temizler.
+- 30 günlük otomatik kalıcı silme: **sistem MediaStore tarafından garanti edilir** (Android 11+). Uygulama tarafı `WorkManager` worker'ı *yok* — orijinal spec'te vardı ama (a) UI gerektiren `createDeleteRequest` worker'dan çağrılamıyor, (b) sistem zaten 30 günde otomatik siliyor.
+- Karar: **MediaStore source-of-truth**. Room/Worker eklemiyoruz; Trash listesi bizim olmayan apple silinen öğeleri de gösterir (kullanıcı feedback'i ile bu doğrultuda netleşti).
+- **Test:** Viewer'dan sil → sistem dialog'u onayla → grid'den kaybolmalı, Trash sekmesinde görünmeli. Trash → uzun bas → seç → Restore (sistem onayı) → grid'e geri dönmeli. Başka uygulamadan silinen öğeler de Trash listesinde görünür.
 
 ## Bağımlılık Seçimleri (gerekçeli)
 
@@ -124,11 +122,11 @@ Her adım sonunda manuel test edilebilir bir durum hedefleniyor. Her adım kendi
 | DI | Koin | Codegen yok → AGP 9 / Kotlin metadata problemlerine bağımlı değil; "Hilt-shaped" DSL ile ileride Hilt'e mekanik geçiş mümkün |
 | Görsel | Coil 3 | Compose-first, Kotlin, küçük, reklam/tracker yok |
 | Video | Media3 ExoPlayer | Google'ın aktif video player'ı, ExoPlayer 2 deprecated |
-| DB | Room + KSP | Standart, KSP ile hızlı derleme |
 | Sayfalama | Paging 3 | Cursor-tabanlı, milyonlarca öğe için tasarlanmış |
-| Async iş | WorkManager | Çöp kutusu temizliği için pil dostu, AndroidX |
 | İzin UI | Accompanist Permissions | İzin akışı boilerplate'ini azaltır |
 | Viewer zoom | Telephoto (`zoomable-image-coil3`) | Subsampling = 4K/RAW'da OOM güvencesi; trust signals iyi (Saket Narayan/Cash App), network footprint sıfır; Coil 3 drop-in |
+
+> Not: Room + WorkManager Adım 10 spec'inde vardı, gerçek implementasyonda kaldırıldı (yukarıdaki Adım 10 açıklamasına bakın). KSP plugin alias hâlâ build'de — processor olmadan no-op, gelecekteki codegen ihtiyaçlarına hazır.
 
 ## Ertelenmiş Kararlar (Tech Debt)
 
@@ -140,9 +138,11 @@ Her adım sonunda manuel test edilebilir bir durum hedefleniyor. Her adım kendi
 - **Migration tetikleyicisi:** Hilt yeni release'inde Kotlin metadata 2.4'ü destekleyince ve Compose BOM ile uyumlu bir matriste çalıştığını doğrulayınca yeniden değerlendir. O zamana kadar Koin kalır.
 - **Önceki bağlam (referans):** Hilt 2.59.2 → "Provided Metadata instance has version 2.4.0, while maximum supported version is 2.3.0". AGP downgrade yolu da `androidx.core:core-ktx:1.19.0` (AGP 9.1+ gerektirir) yüzünden tıkanıyordu. Tam tarihçe için `~/.claude/.../memory/hilt_deferred.md` ve commit geçmişine bakın.
 
-### KSP / Build flags — Step 10'a kadar dokunma
-- `gradle.properties`'ta `android.builtInKotlin=false` + `android.newDsl=false`, `libs.versions.toml`'da standalone Kotlin + KSP 2.3.9 var. Sebep: KSP henüz AGP 9'un built-in Kotlin'iyle uyumlu değil ama Step 10'da Room codegen için KSP şart. Bunları temizlemeden önce KSP'nin AGP 9 built-in Kotlin desteğini doğrula.
-- Kotlin sürümü 2.4.x'e bağımsız olarak çıkabilir (Step 1 testinde KSP 2.3.9 + Kotlin 2.4.0 Step 1 için sorunsuz). Step 10'da @Entity eklendiğinde Room/KSP'nin Kotlin 2.4 metadata'sını sindirebildiğini tekrar test et; sindiremezse ya KSP 2.4.x'i bekle ya da Kotlin'i 2.3.21'e geri pinle.
+### KSP / Build flags — Step 10 sonrası durum (2026-06-14)
+- Adım 10 tetikleyicisi karşılandı: KSP 2.3.9 + Kotlin 2.4.0 + Room codegen + AGP 9.2 birlikte temiz build verdi.
+- Ancak Step 10 implementasyonu MediaStore source-of-truth tasarımına evrildi → Room ve KSP processor kaldırıldı.
+- `gradle.properties`'taki `android.builtInKotlin=false` + `android.newDsl=false` ve `libs.versions.toml`'daki KSP plugin alias'ı **yerinde kaldı** — başka bir codegen processor (Hilt migration, gelecek lib'ler) eklenince yeniden setup gerekmeyecek. Processor'sız KSP build no-op.
+- Temizleme tetikleyicisi: KSP'siz kalmaya kesin karar verilirse bu flag'lar ve standalone Kotlin plugin'i kaldırılabilir; veya AGP 9 built-in Kotlin KSP'yi destekleyince doğal geçiş olur.
 
 ## Riskler / Belirsizlikler
 
