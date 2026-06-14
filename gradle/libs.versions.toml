@@ -17,6 +17,7 @@ navigationCompose = "2.9.8"
 workRuntime = "2.11.2"
 accompanistPermissions = "0.37.3"
 kotlinxSerializationJson = "1.11.0"
+koin = "4.0.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -62,6 +63,10 @@ accompanist-permissions = { group = "com.google.accompanist", name = "accompanis
 
 # Serialization (required by type-safe Navigation Compose routes)
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
+
+# Koin (DI)
+koin-android = { group = "io.insert-koin", name = "koin-android", version.ref = "koin" }
+koin-androidx-compose = { group = "io.insert-koin", name = "koin-androidx-compose", version.ref = "koin" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

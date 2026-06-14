@@ -1,7 +1,30 @@
 package com.barackilic.gallery
 
 import android.app.Application
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
+import coil3.request.crossfade
+import com.barackilic.gallery.core.di.appModule
+import com.barackilic.gallery.ui.common.MediaThumbnailFetcher
+import org.koin.android.ext.koin.androidContext
+import org.koin.core.context.startKoin
 
-// DI framework deliberately omitted in v0.1; revisit before Step 3 (first ViewModel).
-// See PLAN.md "Ertelenmiş Kararlar" before adding @HiltAndroidApp or a Koin startup here.
-class GalleryApp : Application()
+class GalleryApp : Application(), SingletonImageLoader.Factory {
+
+    override fun onCreate() {
+        super.onCreate()
+        startKoin {
+            androidContext(this@GalleryApp)
+            modules(appModule)
+        }
+    }
+
+    override fun newImageLoader(context: PlatformContext): ImageLoader =
+        ImageLoader.Builder(context)
+            .components {
+                add(MediaThumbnailFetcher.Factory(contentResolver))
+            }
+            .crossfade(true)
+            .build()
+}

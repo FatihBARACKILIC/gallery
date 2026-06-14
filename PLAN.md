@@ -6,14 +6,15 @@ Android cihazdaki tüm medyayı (fotoğraf + video) yüksek performansla listele
 ## Etkilenen Dosyalar
 
 ### Değişecek / Yeni oluşturulacak
-- `gradle/libs.versions.toml` — yeni bağımlılıklar (Hilt, Room, Paging 3, Media3, Coil, Navigation Compose, WorkManager, Accompanist Permissions, KSP)
-- `build.gradle.kts` (root) — KSP ve Hilt plugin alias'ları
+- `gradle/libs.versions.toml` — yeni bağımlılıklar (Koin, Room, Paging 3, Media3, Coil, Navigation Compose, WorkManager, Accompanist Permissions, KSP)
+- `build.gradle.kts` (root) — KSP plugin alias'ı
 - `app/build.gradle.kts` — yeni plugin'ler, dependency'ler, KSP konfigürasyonu
 - `app/src/main/AndroidManifest.xml` — `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO`, `POST_NOTIFICATIONS`, `FileProvider`, `Application` sınıfı, `MainActivity` `singleTop`
 - `app/src/main/res/xml/file_paths.xml` — FileProvider için (yeni)
 - `app/src/main/java/com/barackilic/gallery/` altında yeni paket yapısı:
-  - `GalleryApp.kt` — `@HiltAndroidApp`
-  - `MainActivity.kt` — Hilt entry + NavHost'a geçiş
+  - `GalleryApp.kt` — `startKoin { ... }` + Coil `SingletonImageLoader.Factory`
+  - `MainActivity.kt` — NavHost (Koin Compose ile ViewModel injection)
+  - `core/di/AppModule.kt` — Koin modülü (`single` + `viewModel` DSL)
   - `core/` — sabitler, ortak yardımcılar, permission yardımcıları
   - `data/mediastore/` — `MediaStoreSource`, `MediaPagingSource`, `ContentObserver`
   - `data/db/` — Room: `TrashedItemDao`, `TrashedItemEntity`, `GalleryDatabase`
@@ -36,7 +37,7 @@ Android cihazdaki tüm medyayı (fotoğraf + video) yüksek performansla listele
 ## Mimari Özet
 
 - **Sunum:** Jetpack Compose + Material3, tek `MainActivity` + Navigation Compose
-- **DI:** Hilt
+- **DI:** Koin (sadece `single` + `viewModel` DSL; constructor injection)
 - **Async:** Kotlin Coroutines + Flow
 - **Veri kaynakları:**
   - `MediaStore` (sistemin SQLite indeksi) — milyonlarca öğeyi cursor + Paging 3 ile tarayacak; **kendi tarayıcımızı yazmayacağız.** Bu, "ilk açılışta saatlerce bekleme" sorununun çözümüdür: sistem zaten indekslemiş.
@@ -57,7 +58,7 @@ Her adım sonunda manuel test edilebilir bir durum hedefleniyor. Her adım kendi
 - `MainActivity` içine `NavHost` koy (3 rota: Photos / Albums / Trash)
 - 3 sekmeli `NavigationBar` ile ekran iskeletlerini bağla
 - **Test:** Uygulama derlenir ve açılır, sekmeler arası geçiş çalışır
-- ⚠ **Hilt bu adımda atlandı.** Sebebi ve revize koşulu için aşağıda "Ertelenmiş Kararlar" bölümüne bak. **Step 3'e geçmeden önce** DI stratejisini netleştir (Step 2'de henüz ViewModel olmayacak).
+- ⚠ Hilt bu adımda atlanmıştı. **Step 3'te Koin'e karar verildi** — detay için "Ertelenmiş Kararlar → DI" bölümüne bak.
 
 ### Adım 2 — İzin akışı ve MediaStore taraması
 - `PermissionGate` composable: API 33+ için `READ_MEDIA_IMAGES`+`READ_MEDIA_VIDEO`, API 31-32 için `READ_EXTERNAL_STORAGE`
@@ -120,7 +121,7 @@ Her adım sonunda manuel test edilebilir bir durum hedefleniyor. Her adım kendi
 
 | Amaç | Tercih | Neden |
 |---|---|---|
-| DI | Hilt | AndroidX resmi, KSP ile hızlı, Compose entegrasyonu pürüzsüz |
+| DI | Koin | Codegen yok → AGP 9 / Kotlin metadata problemlerine bağımlı değil; "Hilt-shaped" DSL ile ileride Hilt'e mekanik geçiş mümkün |
 | Görsel | Coil 3 | Compose-first, Kotlin, küçük, reklam/tracker yok |
 | Video | Media3 ExoPlayer | Google'ın aktif video player'ı, ExoPlayer 2 deprecated |
 | DB | Room + KSP | Standart, KSP ile hızlı derleme |
@@ -132,15 +133,11 @@ Her adım sonunda manuel test edilebilir bir durum hedefleniyor. Her adım kendi
 
 > Burası "şimdi yapmamayı seçtiğimiz, ama unutursak kod çorba olacak" şeylerin kaydı. Her madde net bir tetikleyici nokta ile yazılmalı.
 
-### Hilt (DI) — Step 3'te tekrar değerlendirilecek
-- **Şu anki durum (2026-06-13):** Hilt 2.59.2 sadece Kotlin metadata 2.3.0'a kadar destek veriyor; AGP 9.2.1 + Compose BOM 2026.05 Kotlin 2.4 metadata üretiyor. Hilt'i eklemek için ya AGP/Compose'u downgrade etmek ya da Hilt'in metadata 2.4 desteklemesini beklemek lazım.
-- **Step 1'de neden zararsız:** Bu adımda enjekte edilecek hiçbir şey yok (placeholder ekranlar). Hilt = 0 kazanç.
-- **Step 2'de neden zararsız:** İzin akışı + MediaStore taraması; ViewModel yok, UI yok. `MediaStoreSource`'u tek satırla constructor'dan kurarız.
-- **Karar tetikleyicisi: Step 3 başlamadan ÖNCE.** İlk `PhotosViewModel` yazılmadan önce şu üçünden birini seç ve commit'le:
-  1. Hilt ekosistemi düzelmiş (yeni release metadata 2.4'ü destekliyor) → Hilt'i ekle (asıl plan), `@HiltAndroidApp` + `@HiltViewModel` + `@AndroidEntryPoint`'i geri koy.
-  2. Hâlâ kırık ve hızlı çözüm istiyorsak → **Koin** (saf Kotlin, codegen yok, metadata sorunu yok, ~30 dk kurulum).
-  3. Tek modül + az graph için → **manuel DI** (`GalleryApp` içinde lazy singleton + `viewModel { initializer { ... } }`).
-- **Kırmızı çizgi:** Step 3 boyunca DI kararı verilmeden ad-hoc singleton/ServiceLocator dağıtmayın. Tek bir strateji seçildikten sonra ViewModel yazımı başlar. Aksi takdirde Step 5-10'a kadar her ekranda farklı bir wiring stili çıkar.
+### DI — Koin seçildi (2026-06-14, Step 3 açılışında)
+- **Karar:** Koin 4.0.4 (`koin-android` + `koin-androidx-compose`). Hilt'in AGP 9.2 / Kotlin 2.4 metadata uyumsuzluğu hâlâ devam ediyor; Koin codegen kullanmadığı için bu eksenden tamamen bağımsız.
+- **Kullanım sözleşmesi (kırmızı çizgi):** Modül DSL'i sadece `single { ... }` + `viewModel { ... }`. Ekranların ve repo'ların içinde `KoinComponent`, `by inject()`, dinamik `get<T>()` YASAK. Tüm bağımlılıklar constructor injection ile geçer. Sebep: bu "Hilt-shaped" kullanım, ileride Hilt'e geçişi mekanik (modül dosyası → `@Module @InstallIn`, `viewModel { Foo(get()) }` → `@HiltViewModel class Foo @Inject constructor(...)`) bir dönüşüme indirir.
+- **Migration tetikleyicisi:** Hilt yeni release'inde Kotlin metadata 2.4'ü destekleyince ve Compose BOM ile uyumlu bir matriste çalıştığını doğrulayınca yeniden değerlendir. O zamana kadar Koin kalır.
+- **Önceki bağlam (referans):** Hilt 2.59.2 → "Provided Metadata instance has version 2.4.0, while maximum supported version is 2.3.0". AGP downgrade yolu da `androidx.core:core-ktx:1.19.0` (AGP 9.1+ gerektirir) yüzünden tıkanıyordu. Tam tarihçe için `~/.claude/.../memory/hilt_deferred.md` ve commit geçmişine bakın.
 
 ### KSP / Build flags — Step 10'a kadar dokunma
 - `gradle.properties`'ta `android.builtInKotlin=false` + `android.newDsl=false`, `libs.versions.toml`'da standalone Kotlin + KSP 2.3.9 var. Sebep: KSP henüz AGP 9'un built-in Kotlin'iyle uyumlu değil ama Step 10'da Room codegen için KSP şart. Bunları temizlemeden önce KSP'nin AGP 9 built-in Kotlin desteğini doğrula.
