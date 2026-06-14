@@ -1,5 +1,8 @@
 package com.barackilic.gallery.data.mediastore
 
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import com.barackilic.gallery.domain.model.MediaItem
@@ -9,6 +12,19 @@ import kotlinx.coroutines.withContext
 class MediaPagingSource(
     private val source: MediaStoreSource,
 ) : PagingSource<Int, MediaItem>() {
+
+    private val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            invalidate()
+        }
+    }
+
+    init {
+        source.registerObserver(observer)
+        registerInvalidatedCallback {
+            source.unregisterObserver(observer)
+        }
+    }
 
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, MediaItem> {
         val page = params.key ?: 0

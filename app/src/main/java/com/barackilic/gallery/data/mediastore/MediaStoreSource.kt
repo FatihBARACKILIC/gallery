@@ -2,6 +2,7 @@ package com.barackilic.gallery.data.mediastore
 
 import android.content.ContentResolver
 import android.content.ContentUris
+import android.database.ContentObserver
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
@@ -51,6 +52,14 @@ class MediaStoreSource(private val resolver: ContentResolver) {
             return cursor.count
         }
         return 0
+    }
+
+    fun registerObserver(observer: ContentObserver) {
+        resolver.registerContentObserver(collection, /* notifyForDescendants = */ true, observer)
+    }
+
+    fun unregisterObserver(observer: ContentObserver) {
+        resolver.unregisterContentObserver(observer)
     }
 
     fun page(offset: Int, limit: Int): List<MediaItem> {

@@ -16,12 +16,17 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
@@ -41,6 +46,7 @@ fun PhotosScreen(modifier: Modifier = Modifier) {
         val viewModel: PhotosViewModel = koinViewModel()
         val mode by viewModel.mode.collectAsState()
         val items = viewModel.gridCells.collectAsLazyPagingItems()
+        RefreshOnResume(items)
         Column(modifier = Modifier.fillMaxSize()) {
             GroupingTabs(
                 selected = mode,
@@ -139,4 +145,22 @@ private fun PhotoGridCell.cellKey(): Any = when (this) {
 private fun PhotoGridCell.cellContentType(): Any = when (this) {
     is PhotoGridCell.Header -> "header"
     is PhotoGridCell.Item -> media.type
+}
+
+// Fallback for OEMs that delay ContentObserver delivery: refresh whenever
+// the screen returns to the foreground. Paging diffs by key, so unchanged
+// items don't re-layout.
+@Composable
+private fun RefreshOnResume(items: LazyPagingItems<*>) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val currentItems by rememberUpdatedState(items)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                currentItems.refresh()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 }
