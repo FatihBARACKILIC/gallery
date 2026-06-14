@@ -6,6 +6,7 @@ import android.database.ContentObserver
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
+import com.barackilic.gallery.domain.model.Album
 import com.barackilic.gallery.domain.model.MediaItem
 import com.barackilic.gallery.domain.model.MediaType
 
@@ -14,7 +15,7 @@ class MediaStoreSource(private val resolver: ContentResolver) {
     private val collection: Uri =
         MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL)
 
-    private val projection = arrayOf(
+    private val itemProjection = arrayOf(
         MediaStore.Files.FileColumns._ID,
         MediaStore.Files.FileColumns.MEDIA_TYPE,
         MediaStore.Files.FileColumns.DATE_TAKEN,
@@ -24,13 +25,12 @@ class MediaStoreSource(private val resolver: ContentResolver) {
         MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME,
     )
 
-    private val selection =
-        "${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (?, ?) AND " +
-            "${MediaStore.Files.FileColumns.IS_TRASHED} = 0"
-
-    private val selectionArgs = arrayOf(
-        MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
-        MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString(),
+    private val albumProjection = arrayOf(
+        MediaStore.Files.FileColumns._ID,
+        MediaStore.Files.FileColumns.BUCKET_ID,
+        MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME,
+        MediaStore.Files.FileColumns.DATE_TAKEN,
+        MediaStore.Files.FileColumns.DATE_MODIFIED,
     )
 
     private val sortOrder =
@@ -38,10 +38,28 @@ class MediaStoreSource(private val resolver: ContentResolver) {
             "${MediaStore.Files.FileColumns.DATE_MODIFIED} * 1000) DESC, " +
             "${MediaStore.Files.FileColumns._ID} DESC"
 
-    fun count(): Int {
+    private fun selection(bucketId: Long?): String {
+        val base = "${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (?, ?) AND " +
+            "${MediaStore.Files.FileColumns.IS_TRASHED} = 0"
+        return if (bucketId != null) {
+            "$base AND ${MediaStore.Files.FileColumns.BUCKET_ID} = ?"
+        } else {
+            base
+        }
+    }
+
+    private fun selectionArgs(bucketId: Long?): Array<String> {
+        val base = arrayOf(
+            MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString(),
+            MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString(),
+        )
+        return if (bucketId != null) base + bucketId.toString() else base
+    }
+
+    fun count(bucketId: Long? = null): Int {
         val args = Bundle().apply {
-            putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
-            putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, selectionArgs)
+            putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection(bucketId))
+            putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, selectionArgs(bucketId))
         }
         resolver.query(
             collection,
@@ -62,16 +80,16 @@ class MediaStoreSource(private val resolver: ContentResolver) {
         resolver.unregisterContentObserver(observer)
     }
 
-    fun page(offset: Int, limit: Int): List<MediaItem> {
+    fun page(offset: Int, limit: Int, bucketId: Long? = null): List<MediaItem> {
         val args = Bundle().apply {
-            putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection)
-            putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, selectionArgs)
+            putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection(bucketId))
+            putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, selectionArgs(bucketId))
             putString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER, sortOrder)
             putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
             putInt(ContentResolver.QUERY_ARG_OFFSET, offset)
         }
         val result = ArrayList<MediaItem>(limit.coerceAtMost(1024))
-        resolver.query(collection, projection, args, null)?.use { c ->
+        resolver.query(collection, itemProjection, args, null)?.use { c ->
             val idCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
             val typeCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MEDIA_TYPE)
             val dateTakenCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_TAKEN)
@@ -104,9 +122,60 @@ class MediaStoreSource(private val resolver: ContentResolver) {
         }
         return result
     }
+
+    fun queryAlbums(): List<Album> {
+        // MediaProvider GROUP BY support has been inconsistent across OEMs since Android 11,
+        // so we group in memory. A single cursor pass over (id, bucket_id, name, date) is
+        // bounded by the device's media count.
+        val args = Bundle().apply {
+            putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection(bucketId = null))
+            putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, selectionArgs(bucketId = null))
+        }
+        val buckets = HashMap<Long, AlbumAccumulator>()
+        resolver.query(collection, albumProjection, args, null)?.use { c ->
+            val idCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID)
+            val bucketIdCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.BUCKET_ID)
+            val bucketNameCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME)
+            val dateTakenCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_TAKEN)
+            val dateModCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATE_MODIFIED)
+            while (c.moveToNext()) {
+                val bucketId = c.getLong(bucketIdCol)
+                val id = c.getLong(idCol)
+                val name = c.getString(bucketNameCol).orEmpty()
+                val date = c.getLong(dateTakenCol).takeIf { it > 0 }
+                    ?: (c.getLong(dateModCol) * 1000L)
+                val acc = buckets.getOrPut(bucketId) { AlbumAccumulator(bucketId) }
+                if (acc.name.isEmpty() && name.isNotEmpty()) acc.name = name
+                acc.count++
+                if (date > acc.latestDate) {
+                    acc.latestDate = date
+                    acc.latestId = id
+                }
+            }
+        }
+        return buckets.values
+            .map { acc ->
+                Album(
+                    id = acc.bucketId,
+                    name = acc.name.ifEmpty { "Unnamed" },
+                    count = acc.count,
+                    coverMediaId = acc.latestId,
+                )
+            }
+            .sortedByDescending { it.count }
+    }
+
+    private class AlbumAccumulator(val bucketId: Long) {
+        var name: String = ""
+        var count: Int = 0
+        var latestId: Long = 0L
+        var latestDate: Long = 0L
+    }
 }
 
-fun MediaItem.contentUri(): Uri =
+fun MediaItem.contentUri(): Uri = mediaContentUri(id)
+
+fun mediaContentUri(id: Long): Uri =
     ContentUris.withAppendedId(
         MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL),
         id,

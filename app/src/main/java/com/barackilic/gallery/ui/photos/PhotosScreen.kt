@@ -11,10 +11,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -31,6 +38,7 @@ import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
+import com.barackilic.gallery.R
 import com.barackilic.gallery.data.mediastore.contentUri
 import com.barackilic.gallery.domain.model.MediaItem
 import com.barackilic.gallery.domain.model.MediaType
@@ -39,27 +47,68 @@ import com.barackilic.gallery.ui.common.MediaThumb
 import com.barackilic.gallery.ui.common.PermissionGate
 import com.barackilic.gallery.ui.common.SectionHeader
 import org.koin.androidx.compose.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 @Composable
 fun PhotosScreen(modifier: Modifier = Modifier) {
     PermissionGate(modifier = modifier) {
         val viewModel: PhotosViewModel = koinViewModel()
-        val mode by viewModel.mode.collectAsState()
-        val items = viewModel.gridCells.collectAsLazyPagingItems()
-        RefreshOnResume(items)
-        Column(modifier = Modifier.fillMaxSize()) {
-            GroupingTabs(
-                selected = mode,
-                onSelect = viewModel::setMode,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+        PhotoGridContent(viewModel = viewModel)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BucketPhotosScreen(
+    bucketId: Long,
+    title: String,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Scaffold(
+        modifier = modifier,
+        topBar = {
+            TopAppBar(
+                title = { Text(title) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = stringResource(R.string.back),
+                        )
+                    }
+                },
             )
-            PhotoGrid(
-                items = items,
-                modifier = Modifier.fillMaxSize(),
-            )
+        },
+    ) { padding ->
+        PermissionGate(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
+            val viewModel: PhotosViewModel = koinViewModel { parametersOf(bucketId) }
+            PhotoGridContent(viewModel = viewModel)
         }
+    }
+}
+
+@Composable
+private fun PhotoGridContent(viewModel: PhotosViewModel) {
+    val mode by viewModel.mode.collectAsState()
+    val items = viewModel.gridCells.collectAsLazyPagingItems()
+    RefreshOnResume(items)
+    Column(modifier = Modifier.fillMaxSize()) {
+        GroupingTabs(
+            selected = mode,
+            onSelect = viewModel::setMode,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        )
+        PhotoGrid(
+            items = items,
+            modifier = Modifier.fillMaxSize(),
+        )
     }
 }
 
@@ -147,9 +196,6 @@ private fun PhotoGridCell.cellContentType(): Any = when (this) {
     is PhotoGridCell.Item -> media.type
 }
 
-// Fallback for OEMs that delay ContentObserver delivery: refresh whenever
-// the screen returns to the foreground. Paging diffs by key, so unchanged
-// items don't re-layout.
 @Composable
 private fun RefreshOnResume(items: LazyPagingItems<*>) {
     val lifecycleOwner = LocalLifecycleOwner.current

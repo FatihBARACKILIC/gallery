@@ -11,6 +11,7 @@ import kotlinx.coroutines.withContext
 
 class MediaPagingSource(
     private val source: MediaStoreSource,
+    private val bucketId: Long? = null,
 ) : PagingSource<Int, MediaItem>() {
 
     private val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
@@ -30,7 +31,11 @@ class MediaPagingSource(
         val page = params.key ?: 0
         return try {
             val items = withContext(Dispatchers.IO) {
-                source.page(offset = page * params.loadSize, limit = params.loadSize)
+                source.page(
+                    offset = page * params.loadSize,
+                    limit = params.loadSize,
+                    bucketId = bucketId,
+                )
             }
             LoadResult.Page(
                 data = items,

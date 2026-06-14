@@ -1,8 +1,11 @@
 package com.barackilic.gallery.core.di
 
 import com.barackilic.gallery.data.mediastore.MediaStoreSource
+import com.barackilic.gallery.data.repository.AlbumRepositoryImpl
 import com.barackilic.gallery.data.repository.MediaRepositoryImpl
+import com.barackilic.gallery.domain.repository.AlbumRepository
 import com.barackilic.gallery.domain.repository.MediaRepository
+import com.barackilic.gallery.ui.albums.AlbumsViewModel
 import com.barackilic.gallery.ui.photos.PhotosViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.core.module.dsl.viewModel
@@ -15,5 +18,7 @@ import org.koin.dsl.module
 val appModule = module {
     single { MediaStoreSource(androidContext().contentResolver) }
     single<MediaRepository> { MediaRepositoryImpl(get()) }
-    viewModel { PhotosViewModel(get()) }
+    single<AlbumRepository> { AlbumRepositoryImpl(get()) }
+    viewModel { params -> PhotosViewModel(get(), params.getOrNull<Long>()) }
+    viewModel { AlbumsViewModel(get()) }
 }

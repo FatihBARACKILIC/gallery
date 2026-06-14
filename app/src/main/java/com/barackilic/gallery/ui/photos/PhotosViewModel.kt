@@ -19,13 +19,18 @@ import kotlinx.coroutines.flow.map
 @OptIn(ExperimentalCoroutinesApi::class)
 class PhotosViewModel(
     repository: MediaRepository,
+    bucketId: Long? = null,
 ) : ViewModel() {
 
     private val _mode = MutableStateFlow(GroupingMode.Day)
     val mode: StateFlow<GroupingMode> = _mode.asStateFlow()
 
     private val cachedMedia: Flow<PagingData<MediaItem>> =
-        repository.pagedMedia().cachedIn(viewModelScope)
+        (if (bucketId != null) {
+            repository.pagedMediaInBucket(bucketId)
+        } else {
+            repository.pagedMedia()
+        }).cachedIn(viewModelScope)
 
     val gridCells: Flow<PagingData<PhotoGridCell>> =
         _mode

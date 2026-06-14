@@ -14,5 +14,7 @@
     <string name="grouping_day">Day</string>
     <string name="grouping_month">Month</string>
     <string name="grouping_year">Year</string>
+
+    <string name="back">Back</string>
 </resources>
 

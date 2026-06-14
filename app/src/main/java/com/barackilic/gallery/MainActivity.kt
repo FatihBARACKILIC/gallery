@@ -21,6 +21,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.barackilic.gallery.ui.navigation.Destination
 import com.barackilic.gallery.ui.navigation.GalleryNavHost
 import com.barackilic.gallery.ui.navigation.TopLevelTab
 import com.barackilic.gallery.ui.theme.GalleryTheme
@@ -66,9 +67,16 @@ private fun GalleryBottomBar(
     currentDestination: NavDestination?,
     onTabSelected: (TopLevelTab) -> Unit,
 ) {
+    val albumsSubroute =
+        currentDestination?.hasRoute(Destination.AlbumPhotos::class) == true
     NavigationBar {
         TopLevelTab.entries.forEach { tab ->
-            val selected = currentDestination?.hasRoute(tab.destination::class) == true
+            val selected = when (tab) {
+                TopLevelTab.Albums ->
+                    currentDestination?.hasRoute(tab.destination::class) == true ||
+                        albumsSubroute
+                else -> currentDestination?.hasRoute(tab.destination::class) == true
+            }
             NavigationBarItem(
                 selected = selected,
                 onClick = { onTabSelected(tab) },

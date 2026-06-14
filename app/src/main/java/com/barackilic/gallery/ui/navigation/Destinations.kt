@@ -18,6 +18,9 @@ sealed interface Destination {
 
     @Serializable
     data object Trash : Destination
+
+    @Serializable
+    data class AlbumPhotos(val bucketId: Long, val name: String) : Destination
 }
 
 enum class TopLevelTab(

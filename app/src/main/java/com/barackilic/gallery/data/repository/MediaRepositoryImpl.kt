@@ -13,7 +13,12 @@ class MediaRepositoryImpl(
     private val source: MediaStoreSource,
 ) : MediaRepository {
 
-    override fun pagedMedia(): Flow<PagingData<MediaItem>> =
+    override fun pagedMedia(): Flow<PagingData<MediaItem>> = pager(bucketId = null)
+
+    override fun pagedMediaInBucket(bucketId: Long): Flow<PagingData<MediaItem>> =
+        pager(bucketId = bucketId)
+
+    private fun pager(bucketId: Long?): Flow<PagingData<MediaItem>> =
         Pager(
             config = PagingConfig(
                 pageSize = PAGE_SIZE,
@@ -21,7 +26,7 @@ class MediaRepositoryImpl(
                 initialLoadSize = PAGE_SIZE,
                 enablePlaceholders = false,
             ),
-            pagingSourceFactory = { MediaPagingSource(source) },
+            pagingSourceFactory = { MediaPagingSource(source, bucketId) },
         ).flow
 
     private companion object {
