@@ -158,8 +158,10 @@ private fun ViewerPager(
         // still hold a stale MediaItem after invalidation.
         snapshotFlow { pagerState.currentPage to items.itemCount }
             .distinctUntilChanged()
-            .collect { (page, _) ->
-                val current = items.peek(page)
+            .collect { (page, count) ->
+                // After trashing the last visible item, currentPage may briefly point
+                // past the new end before the pager settles. Guard the peek call.
+                val current = if (page in 0 until count) items.peek(page) else null
                 onCurrentItemChanged(current)
                 if (current?.type == MediaType.Video) {
                     val mediaId = current.id.toString()
