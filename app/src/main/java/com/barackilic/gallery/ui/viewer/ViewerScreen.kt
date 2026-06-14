@@ -5,7 +5,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -16,8 +15,6 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -25,17 +22,27 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import coil3.compose.AsyncImage
@@ -44,9 +51,11 @@ import com.barackilic.gallery.data.mediastore.contentUri
 import com.barackilic.gallery.domain.model.MediaItem
 import com.barackilic.gallery.domain.model.MediaType
 import com.barackilic.gallery.ui.common.MediaThumbRequest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import me.saket.telephoto.zoomable.coil3.ZoomableAsyncImage
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
+import androidx.media3.common.MediaItem as Media3MediaItem
 
 @Composable
 fun ViewerScreen(
@@ -57,6 +66,25 @@ fun ViewerScreen(
 ) {
     val viewModel: ViewerViewModel = koinViewModel { parametersOf(bucketId) }
     val items = viewModel.items.collectAsLazyPagingItems()
+
+    val context = LocalContext.current
+    val player = remember {
+        ExoPlayer.Builder(context)
+            .setSeekBackIncrementMs(SEEK_INCREMENT_MS)
+            .setSeekForwardIncrementMs(SEEK_INCREMENT_MS)
+            .build()
+    }
+    DisposableEffect(player) {
+        onDispose { player.release() }
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, player) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE) player.pause()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     var systemBarsVisible by rememberSaveable { mutableStateOf(true) }
     ImmersiveSystemBars(visible = systemBarsVisible)
@@ -69,7 +97,9 @@ fun ViewerScreen(
         ViewerPager(
             items = items,
             initialIndex = initialIndex,
+            player = player,
             onToggleBars = { systemBarsVisible = !systemBarsVisible },
+            onVideoPageShown = { systemBarsVisible = true },
             modifier = Modifier.fillMaxSize(),
         )
         AnimatedVisibility(
@@ -90,7 +120,9 @@ fun ViewerScreen(
 private fun ViewerPager(
     items: LazyPagingItems<MediaItem>,
     initialIndex: Int,
+    player: ExoPlayer,
     onToggleBars: () -> Unit,
+    onVideoPageShown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val itemCount = items.itemCount
@@ -101,6 +133,31 @@ private fun ViewerPager(
     val pagerState = rememberPagerState(
         initialPage = initialIndex.coerceIn(0, itemCount - 1),
     ) { items.itemCount }
+
+    LaunchedEffect(pagerState, player) {
+        snapshotFlow { pagerState.currentPage }
+            .distinctUntilChanged()
+            .collect { page ->
+                val current = items.peek(page)
+                if (current?.type == MediaType.Video) {
+                    val mediaId = current.id.toString()
+                    if (player.currentMediaItem?.mediaId != mediaId) {
+                        player.setMediaItem(
+                            Media3MediaItem.Builder()
+                                .setMediaId(mediaId)
+                                .setUri(current.contentUri())
+                                .build(),
+                        )
+                        player.prepare()
+                    }
+                    player.playWhenReady = true
+                    onVideoPageShown()
+                } else {
+                    player.pause()
+                }
+            }
+    }
+
     HorizontalPager(
         state = pagerState,
         modifier = modifier,
@@ -109,7 +166,11 @@ private fun ViewerPager(
     ) { page ->
         val item = items[page]
         if (item != null) {
-            ViewerPage(item = item, onToggleBars = onToggleBars)
+            ViewerPage(
+                item = item,
+                player = if (page == pagerState.currentPage) player else null,
+                onToggleBars = onToggleBars,
+            )
         }
     }
 }
@@ -117,6 +178,7 @@ private fun ViewerPager(
 @Composable
 private fun ViewerPage(
     item: MediaItem,
+    player: ExoPlayer?,
     onToggleBars: () -> Unit,
 ) {
     when (item.type) {
@@ -139,21 +201,38 @@ private fun ViewerPage(
                 )
             }
         }
-        MediaType.Video -> {
-            // Video playback comes in Step 8; for now show a placeholder
-            // that still toggles system bars on tap.
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable { onToggleBars() },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(R.string.viewer_video_placeholder),
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            }
+        MediaType.Video -> VideoPage(item = item, player = player)
+    }
+}
+
+@androidx.annotation.OptIn(UnstableApi::class)
+@Composable
+private fun VideoPage(
+    item: MediaItem,
+    player: ExoPlayer?,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Thumb poster so adjacent (off-current) video pages show a frame instead of black.
+        AsyncImage(
+            model = MediaThumbRequest(item.contentUri()),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize(),
+        )
+        if (player != null) {
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        useController = true
+                        setShowRewindButton(true)
+                        setShowFastForwardButton(true)
+                        setBackgroundColor(android.graphics.Color.BLACK)
+                    }
+                },
+                update = { view -> view.player = player },
+                onRelease = { view -> view.player = null },
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 }
@@ -204,3 +283,5 @@ private fun ImmersiveSystemBars(visible: Boolean) {
         }
     }
 }
+
+private const val SEEK_INCREMENT_MS = 10_000L
