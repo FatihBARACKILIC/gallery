@@ -2,6 +2,7 @@ package com.barackilic.gallery.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -10,48 +11,98 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+enum class ThemeMode { System, Light, Dark, Amoled }
+
+private val DarkColorScheme: ColorScheme = darkColorScheme(
+    primary = GalleryColors.darkPrimary,
+    onPrimary = GalleryColors.darkOnPrimary,
+    primaryContainer = GalleryColors.darkPrimaryContainer,
+    onPrimaryContainer = GalleryColors.darkOnPrimaryContainer,
+    secondary = GalleryColors.darkSecondary,
+    onSecondary = GalleryColors.darkOnSecondary,
+    secondaryContainer = GalleryColors.darkSecondaryContainer,
+    onSecondaryContainer = GalleryColors.darkOnSecondaryContainer,
+    tertiary = GalleryColors.darkTertiary,
+    onTertiary = GalleryColors.darkOnTertiary,
+    background = GalleryColors.darkBackground,
+    onBackground = GalleryColors.darkOnBackground,
+    surface = GalleryColors.darkSurface,
+    onSurface = GalleryColors.darkOnSurface,
+    onSurfaceVariant = GalleryColors.darkOnSurfaceVariant,
+    surfaceContainer = GalleryColors.darkSurfaceContainer,
+    surfaceContainerHigh = GalleryColors.darkSurfaceContainerHigh,
+    surfaceContainerHighest = GalleryColors.darkSurfaceContainerHighest,
+    outline = GalleryColors.darkOutline,
+    outlineVariant = GalleryColors.darkOutlineVariant,
+    error = GalleryColors.darkError,
+    onError = GalleryColors.darkOnError,
+    scrim = GalleryColors.scrim,
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+// AMOLED: Dark scheme + saf siyah surface/background; container kademeleri bir tık aşağı kayar.
+private val AmoledColorScheme: ColorScheme = DarkColorScheme.copy(
+    background = GalleryColors.amoledBackground,
+    surface = GalleryColors.amoledSurface,
+    surfaceContainer = GalleryColors.amoledSurfaceContainer,
+    surfaceContainerHigh = GalleryColors.amoledSurfaceContainerHigh,
+    surfaceContainerHighest = GalleryColors.amoledSurfaceContainerHighest,
+)
 
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+private val LightColorScheme: ColorScheme = lightColorScheme(
+    primary = GalleryColors.lightPrimary,
+    onPrimary = GalleryColors.lightOnPrimary,
+    primaryContainer = GalleryColors.lightPrimaryContainer,
+    onPrimaryContainer = GalleryColors.lightOnPrimaryContainer,
+    secondary = GalleryColors.lightSecondary,
+    onSecondary = GalleryColors.lightOnSecondary,
+    secondaryContainer = GalleryColors.lightSecondaryContainer,
+    onSecondaryContainer = GalleryColors.lightOnSecondaryContainer,
+    tertiary = GalleryColors.lightTertiary,
+    onTertiary = GalleryColors.lightOnTertiary,
+    background = GalleryColors.lightBackground,
+    onBackground = GalleryColors.lightOnBackground,
+    surface = GalleryColors.lightSurface,
+    onSurface = GalleryColors.lightOnSurface,
+    onSurfaceVariant = GalleryColors.lightOnSurfaceVariant,
+    surfaceContainer = GalleryColors.lightSurfaceContainer,
+    surfaceContainerHigh = GalleryColors.lightSurfaceContainerHigh,
+    surfaceContainerHighest = GalleryColors.lightSurfaceContainerHighest,
+    outline = GalleryColors.lightOutline,
+    outlineVariant = GalleryColors.lightOutlineVariant,
+    error = GalleryColors.lightError,
+    onError = GalleryColors.lightOnError,
+    scrim = GalleryColors.scrim,
 )
 
 @Composable
 fun GalleryTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: ThemeMode = ThemeMode.System,
     dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        // Material You dynamic color is API 31+; Android 11 (API 30) falls back to static.
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
+    val systemDark = isSystemInDarkTheme()
+    val useDark = when (themeMode) {
+        ThemeMode.System -> systemDark
+        ThemeMode.Light -> false
+        ThemeMode.Dark, ThemeMode.Amoled -> true
+    }
 
-        darkTheme -> DarkColorScheme
+    val dynamicAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val colorScheme: ColorScheme = when {
+        // AMOLED'i dynamic color override etmez — saf siyah bilinçli bir tercih.
+        themeMode == ThemeMode.Amoled -> AmoledColorScheme
+        dynamicColor && dynamicAvailable -> {
+            val context = LocalContext.current
+            if (useDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        }
+        useDark -> DarkColorScheme
         else -> LightColorScheme
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
-        content = content
+        shapes = Shapes,
+        content = content,
     )
 }
