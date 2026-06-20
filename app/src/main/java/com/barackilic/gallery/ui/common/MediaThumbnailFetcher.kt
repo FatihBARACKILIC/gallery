@@ -34,13 +34,12 @@ class MediaThumbnailFetcher(
         private val resolver: ContentResolver,
     ) : Fetcher.Factory<MediaThumbRequest> {
 
-        // imageLoader is part of the Coil 3 Fetcher.Factory contract but unused here —
-        // we read directly through ContentResolver.loadThumbnail.
-        @Suppress("UNUSED_PARAMETER")
         override fun create(
             data: MediaThumbRequest,
             options: Options,
-            imageLoader: ImageLoader,
+            // Coil 3 Fetcher.Factory imzası geregi var; biz ContentResolver.loadThumbnail
+            // kullandigimiz icin tuketmiyoruz. `_` prefix IDE'ye unused oldugunu bildirir.
+            @Suppress("LocalVariableName") _imageLoader: ImageLoader,
         ): Fetcher {
             val width = options.size.width.pxOrElse { DEFAULT_THUMB_PX }
             val height = options.size.height.pxOrElse { DEFAULT_THUMB_PX }
