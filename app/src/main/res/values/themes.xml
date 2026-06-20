@@ -2,4 +2,12 @@
 <resources>
 
     <style name="Theme.Gallery" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <!-- Splash teması: launcher activity bunu kullanır, installSplashScreen() çağrısı
+         postSplashScreenTheme'e geçer. Bg light tema için surface (#FAF8FC). -->
+    <style name="Theme.Gallery.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#FAF8FC</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.Gallery</item>
+    </style>
 </resources>

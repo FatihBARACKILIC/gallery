@@ -17,6 +17,7 @@ accompanistPermissions = "0.37.3"
 kotlinxSerializationJson = "1.11.0"
 koin = "4.2.1"
 telephoto = "0.19.0"
+coreSplashscreen = "1.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -62,6 +63,9 @@ koin-androidx-compose = { group = "io.insert-koin", name = "koin-androidx-compos
 
 # Telephoto (viewer zoom + Coil 3 subsampling)
 telephoto-zoomable-image-coil3 = { group = "me.saket.telephoto", name = "zoomable-image-coil3", version.ref = "telephoto" }
+
+# Splash Screen (Android 12+ API, backport for API 30-31)
+androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
