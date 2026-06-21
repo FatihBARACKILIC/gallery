@@ -15,12 +15,12 @@
     <string name="permission_inline_title">Fotoğraflara erişim gerekli</string>
     <string name="permission_inline_action">İzin ver</string>
 
-    <string name="grouping_day">Gün</string>
-    <string name="grouping_month">Ay</string>
-    <string name="grouping_year">Yıl</string>
-
     <string name="back">Geri</string>
     <string name="share">Paylaş</string>
+    <string name="more_options">Daha fazla</string>
+
+    <string name="photos_zoom_in">Daha büyük</string>
+    <string name="photos_zoom_out">Daha küçük</string>
 
     <string name="search_placeholder_title">Arama yakında</string>
     <string name="search_placeholder_description">Bu sekme v0.2 ilerleyen adımlarında etkinleşecek.</string>

@@ -1,35 +1,41 @@
 package com.barackilic.gallery.ui.photos
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -44,6 +50,7 @@ import com.barackilic.gallery.data.mediastore.contentUri
 import com.barackilic.gallery.domain.model.MediaItem
 import com.barackilic.gallery.domain.model.MediaType
 import com.barackilic.gallery.ui.common.DurationBadge
+import com.barackilic.gallery.ui.common.GalleryTopBar
 import com.barackilic.gallery.ui.common.MediaThumb
 import com.barackilic.gallery.ui.common.PermissionGate
 import com.barackilic.gallery.ui.common.SectionHeader
@@ -52,6 +59,7 @@ import org.koin.core.parameter.parametersOf
 
 typealias OnMediaClick = (mediaIndex: Int, mediaId: Long) -> Unit
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PhotosScreen(
     onItemClick: OnMediaClick,
@@ -59,7 +67,26 @@ fun PhotosScreen(
 ) {
     PermissionGate(modifier = modifier) {
         val viewModel: PhotosViewModel = koinViewModel()
-        PhotoGridContent(viewModel = viewModel, onItemClick = onItemClick)
+        val zoomLevel by viewModel.zoomLevel.collectAsState()
+        Scaffold(
+            topBar = {
+                GalleryTopBar(
+                    actions = {
+                        PhotoOverflowMenu(
+                            current = zoomLevel,
+                            onZoomIn = { viewModel.setZoomLevel(zoomLevel.zoomIn()) },
+                            onZoomOut = { viewModel.setZoomLevel(zoomLevel.zoomOut()) },
+                        )
+                    },
+                )
+            },
+        ) { padding ->
+            PhotoGridContent(
+                viewModel = viewModel,
+                onItemClick = onItemClick,
+                modifier = Modifier.padding(padding),
+            )
+        }
     }
 }
 
@@ -72,6 +99,8 @@ fun BucketPhotosScreen(
     onItemClick: OnMediaClick,
     modifier: Modifier = Modifier,
 ) {
+    val viewModel: PhotosViewModel = koinViewModel { parametersOf(bucketId) }
+    val zoomLevel by viewModel.zoomLevel.collectAsState()
     Scaffold(
         modifier = modifier,
         topBar = {
@@ -85,6 +114,13 @@ fun BucketPhotosScreen(
                         )
                     }
                 },
+                actions = {
+                    PhotoOverflowMenu(
+                        current = zoomLevel,
+                        onZoomIn = { viewModel.setZoomLevel(zoomLevel.zoomIn()) },
+                        onZoomOut = { viewModel.setZoomLevel(zoomLevel.zoomOut()) },
+                    )
+                },
             )
         },
     ) { padding ->
@@ -93,9 +129,41 @@ fun BucketPhotosScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            val viewModel: PhotosViewModel = koinViewModel { parametersOf(bucketId) }
             PhotoGridContent(viewModel = viewModel, onItemClick = onItemClick)
         }
+    }
+}
+
+@Composable
+private fun PhotoOverflowMenu(
+    current: ZoomLevel,
+    onZoomIn: () -> Unit,
+    onZoomOut: () -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    IconButton(onClick = { expanded = true }) {
+        Icon(
+            imageVector = Icons.Outlined.MoreVert,
+            contentDescription = stringResource(R.string.more_options),
+        )
+    }
+    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.photos_zoom_in)) },
+            enabled = current.canZoomIn,
+            onClick = {
+                onZoomIn()
+                expanded = false
+            },
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.photos_zoom_out)) },
+            enabled = current.canZoomOut,
+            onClick = {
+                onZoomOut()
+                expanded = false
+            },
+        )
     }
 }
 
@@ -103,92 +171,111 @@ fun BucketPhotosScreen(
 private fun PhotoGridContent(
     viewModel: PhotosViewModel,
     onItemClick: OnMediaClick,
-) {
-    val mode by viewModel.mode.collectAsState()
-    val items = viewModel.gridCells.collectAsLazyPagingItems()
-    RefreshOnResume(items)
-    Column(modifier = Modifier.fillMaxSize()) {
-        GroupingTabs(
-            selected = mode,
-            onSelect = viewModel::setMode,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-        )
-        PhotoGrid(
-            items = items,
-            onCellClick = { cellIndex, mediaId ->
-                val mediaIndex = computeMediaIndex(items, cellIndex)
-                onItemClick(mediaIndex, mediaId)
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
-    }
-}
-
-@Composable
-private fun GroupingTabs(
-    selected: GroupingMode,
-    onSelect: (GroupingMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val modes = GroupingMode.entries
-    SingleChoiceSegmentedButtonRow(modifier = modifier) {
-        modes.forEachIndexed { index, mode ->
-            SegmentedButton(
-                selected = mode == selected,
-                onClick = { onSelect(mode) },
-                shape = SegmentedButtonDefaults.itemShape(index = index, count = modes.size),
-            ) {
-                Text(stringResource(mode.labelRes))
-            }
-        }
-    }
+    val zoomLevel by viewModel.zoomLevel.collectAsState()
+    val items = viewModel.gridCells.collectAsLazyPagingItems()
+    RefreshOnResume(items)
+    PhotoGrid(
+        items = items,
+        columns = zoomLevel.columns,
+        onCellClick = { cellIndex, mediaId ->
+            val mediaIndex = computeMediaIndex(items, cellIndex)
+            onItemClick(mediaIndex, mediaId)
+        },
+        onZoomIn = { viewModel.setZoomLevel(zoomLevel.zoomIn()) },
+        onZoomOut = { viewModel.setZoomLevel(zoomLevel.zoomOut()) },
+        modifier = modifier.fillMaxSize(),
+    )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PhotoGrid(
     items: LazyPagingItems<PhotoGridCell>,
+    columns: Int,
     onCellClick: (cellIndex: Int, mediaId: Long) -> Unit,
+    onZoomIn: () -> Unit,
+    onZoomOut: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyVerticalGrid(
-        modifier = modifier,
-        columns = GridCells.Adaptive(minSize = 110.dp),
-        contentPadding = PaddingValues(2.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+    val zoomInState = rememberUpdatedState(onZoomIn)
+    val zoomOutState = rememberUpdatedState(onZoomOut)
+    Box(
+        modifier = modifier.pointerInput(Unit) {
+            awaitEachGesture {
+                // localZoom resets every time fingers lift, so each new pinch starts
+                // fresh — no asymmetric accumulation between gestures.
+                var localZoom = 1f
+                awaitFirstDown(requireUnconsumed = false)
+                do {
+                    val event = awaitPointerEvent()
+                    val pressedCount = event.changes.count { it.pressed }
+                    if (pressedCount >= 2) {
+                        val zoomChange = event.calculateZoom()
+                        if (zoomChange.isFinite() && zoomChange > 0f && zoomChange != 1f) {
+                            localZoom *= zoomChange
+                            when {
+                                localZoom > ZOOM_STEP_THRESHOLD -> {
+                                    zoomInState.value()
+                                    localZoom = 1f
+                                }
+                                localZoom < 1f / ZOOM_STEP_THRESHOLD -> {
+                                    zoomOutState.value()
+                                    localZoom = 1f
+                                }
+                            }
+                        }
+                        // Consume so LazyVerticalGrid's scrollable doesn't also react.
+                        event.changes.forEach { it.consume() }
+                    }
+                } while (event.changes.any { it.pressed })
+            }
+        },
     ) {
-        items(
-            count = items.itemCount,
-            key = items.itemKey { it.cellKey() },
-            contentType = items.itemContentType { it.cellContentType() },
-            span = { index ->
-                when (items.peek(index)) {
-                    is PhotoGridCell.Header -> GridItemSpan(maxLineSpan)
-                    else -> GridItemSpan(1)
+        LazyVerticalGrid(
+            modifier = Modifier.fillMaxSize(),
+            columns = GridCells.Fixed(columns),
+            contentPadding = PaddingValues(2.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            items(
+                count = items.itemCount,
+                key = items.itemKey { it.cellKey() },
+                contentType = items.itemContentType { it.cellContentType() },
+                span = { index ->
+                    when (items.peek(index)) {
+                        is PhotoGridCell.Header -> GridItemSpan(maxLineSpan)
+                        else -> GridItemSpan(1)
+                    }
+                },
+            ) { index ->
+                when (val cell = items[index]) {
+                    is PhotoGridCell.Header ->
+                        SectionHeader(cell.label, modifier = Modifier.animateItem())
+                    is PhotoGridCell.Item -> MediaCell(
+                        item = cell.media,
+                        onClick = { onCellClick(index, cell.media.id) },
+                        modifier = Modifier.animateItem(),
+                    )
+                    null -> Box(Modifier.aspectRatio(1f))
                 }
-            },
-        ) { index ->
-            when (val cell = items[index]) {
-                is PhotoGridCell.Header -> SectionHeader(cell.label)
-                is PhotoGridCell.Item -> MediaCell(
-                    item = cell.media,
-                    onClick = { onCellClick(index, cell.media.id) },
-                )
-                null -> Box(Modifier.aspectRatio(1f))
             }
         }
     }
 }
+
+private const val ZOOM_STEP_THRESHOLD = 1.25f
 
 @Composable
 private fun MediaCell(
     item: MediaItem,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .aspectRatio(1f)
             .clickable(onClick = onClick),

@@ -91,9 +91,22 @@ Her adım sonunda manuel test edilebilir. Her adım kendi commit'i. Kullanıcı 
 - Photos/Albums/BucketPhotos'taki defansif `PermissionGate` korunur (izin runtime'da iptal edilirse veya kullanıcı "Daha sonra" demişse fallback)
 - **Test:** İlk açılış akışı bozulmaz
 
-### Adım 3 — Fotoğraflar grid redesign
-- 3-col grid (adaptive 2–5 kullanıcı SS'ine göre), sticky tarih başlıkları, edge-to-edge, 2dp gutter
-- **Test:** 1k+ medya akıcı scroll
+### Adım 3a — Fotoğraflar: foundation (top bar + zoom + doğal TR header)
+- Yeni `GalleryTopBar` PhotosScreen'e bağlanır ("Fotoğraflar" başlık + 3-nokta menü)
+- 3-nokta menü: "Daha küçük" / "Daha büyük" (zoom out/in)
+- 4 uniform zoom seviyesi: L24 / L12 / L6 / L3 (kare hücreler, default L3)
+- Pinch-to-zoom (transformable state + threshold)
+- `GroupingMode` (Day/Month/Year SegmentedButton) silinir
+- Yeni tarih header sistemi (Bugün / Dün / Bu Hafta / Bu Ay / Mayıs 2026 / 2025 ...)
+- Ay isimleri hardcoded TR (Ocak, Şubat, ...)
+- **Test:** Pinch + butonlar L24↔L3 arası geçiş yapar; header'lar doğru gruplama gösterir
+
+### Adım 3b — Fotoğraflar: justified mode (L5)
+- Justified row layout — her foto kendi aspect ratio'sunda; satır packing algoritması
+- MediaStore projection'a `WIDTH`/`HEIGHT` eklenir, `MediaItem`'a aspect ratio alanı
+- L5 header'ları farklı granülerlik: Haziran 2026 / Mayıs 2026 / ... / 2025 (Bugün/Dün/Bu Hafta yok)
+- Pinch out L3 → L5 geçişi
+- **Test:** Karışık portrait/landscape akıcı, layout shift yok
 
 ### Adım 4 — Albümler grid redesign
 - 2-col card grid, kapak + isim + sayı

@@ -22,8 +22,12 @@ class PhotosViewModel(
     bucketId: Long? = null,
 ) : ViewModel() {
 
-    private val _mode = MutableStateFlow(GroupingMode.Day)
-    val mode: StateFlow<GroupingMode> = _mode.asStateFlow()
+    private val _zoomLevel = MutableStateFlow(ZoomLevel.L3)
+    val zoomLevel: StateFlow<ZoomLevel> = _zoomLevel.asStateFlow()
+
+    // Captured once; relative buckets (Bugün/Dün/Bu Hafta) drift past midnight if the
+    // app stays open, but that's acceptable for v0.2 — refresh-on-resume rebuilds.
+    private val nowMillis: Long = System.currentTimeMillis()
 
     private val cachedMedia: Flow<PagingData<MediaItem>> =
         (if (bucketId != null) {
@@ -33,19 +37,24 @@ class PhotosViewModel(
         }).cachedIn(viewModelScope)
 
     val gridCells: Flow<PagingData<PhotoGridCell>> =
-        _mode
-            .flatMapLatest { mode ->
+        _zoomLevel
+            .flatMapLatest { level ->
                 cachedMedia.map { paging ->
                     paging
                         .map { PhotoGridCell.Item(it) }
                         .insertSeparators<PhotoGridCell.Item, PhotoGridCell> { before, after ->
-                            headerBetween(before?.media, after?.media, mode)
+                            headerBetween(
+                                before?.media,
+                                after?.media,
+                                nowMillis,
+                                level.headerGranularity,
+                            )
                         }
                 }
             }
             .cachedIn(viewModelScope)
 
-    fun setMode(mode: GroupingMode) {
-        _mode.value = mode
+    fun setZoomLevel(level: ZoomLevel) {
+        _zoomLevel.value = level
     }
 }
