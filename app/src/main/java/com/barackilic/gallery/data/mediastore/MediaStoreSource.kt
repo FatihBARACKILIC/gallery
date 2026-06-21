@@ -24,6 +24,8 @@ class MediaStoreSource(private val resolver: ContentResolver) {
         MediaStore.Files.FileColumns.DURATION,
         MediaStore.Files.FileColumns.BUCKET_ID,
         MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME,
+        MediaStore.Files.FileColumns.WIDTH,
+        MediaStore.Files.FileColumns.HEIGHT,
     )
 
     private val trashProjection = arrayOf(
@@ -88,6 +90,8 @@ class MediaStoreSource(private val resolver: ContentResolver) {
             val durationCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DURATION)
             val bucketIdCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.BUCKET_ID)
             val bucketNameCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME)
+            val widthCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.WIDTH)
+            val heightCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.HEIGHT)
 
             while (c.moveToNext()) {
                 val mediaType = when (c.getInt(typeCol)) {
@@ -108,6 +112,8 @@ class MediaStoreSource(private val resolver: ContentResolver) {
                     durationMs = duration,
                     bucketId = c.getLong(bucketIdCol),
                     bucketName = c.getString(bucketNameCol).orEmpty(),
+                    width = c.getInt(widthCol),
+                    height = c.getInt(heightCol),
                 )
             }
         }

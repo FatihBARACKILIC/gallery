@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -50,7 +51,10 @@ fun PermissionGate(
     var hasRequested by rememberSaveable { mutableStateOf(false) }
 
     if (state.allPermissionsGranted) {
-        content()
+        // Box wrap so the modifier (often the Scaffold innerPadding) applies to the
+        // content. Without it, callers that put PermissionGate inside a Scaffold lose
+        // the top-bar offset and the first row of content slides under the bar.
+        Box(modifier = modifier) { content() }
         return
     }
 

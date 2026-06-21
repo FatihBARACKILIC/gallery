@@ -6,10 +6,17 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -28,6 +35,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -176,17 +184,29 @@ private fun PhotoGridContent(
     val zoomLevel by viewModel.zoomLevel.collectAsState()
     val items = viewModel.gridCells.collectAsLazyPagingItems()
     RefreshOnResume(items)
-    PhotoGrid(
-        items = items,
-        columns = zoomLevel.columns,
-        onCellClick = { cellIndex, mediaId ->
-            val mediaIndex = computeMediaIndex(items, cellIndex)
-            onItemClick(mediaIndex, mediaId)
-        },
-        onZoomIn = { viewModel.setZoomLevel(zoomLevel.zoomIn()) },
-        onZoomOut = { viewModel.setZoomLevel(zoomLevel.zoomOut()) },
-        modifier = modifier.fillMaxSize(),
-    )
+    val onZoomIn: () -> Unit = { viewModel.setZoomLevel(zoomLevel.zoomIn()) }
+    val onZoomOut: () -> Unit = { viewModel.setZoomLevel(zoomLevel.zoomOut()) }
+    if (zoomLevel.isJustified) {
+        JustifiedLayout(
+            items = items,
+            onItemClick = onItemClick,
+            onZoomIn = onZoomIn,
+            onZoomOut = onZoomOut,
+            modifier = modifier.fillMaxSize(),
+        )
+    } else {
+        PhotoGrid(
+            items = items,
+            columns = zoomLevel.columns,
+            onCellClick = { cellIndex, mediaId ->
+                val mediaIndex = computeMediaIndex(items, cellIndex)
+                onItemClick(mediaIndex, mediaId)
+            },
+            onZoomIn = onZoomIn,
+            onZoomOut = onZoomOut,
+            modifier = modifier.fillMaxSize(),
+        )
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -328,5 +348,119 @@ private fun RefreshOnResume(items: LazyPagingItems<*>) {
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun JustifiedLayout(
+    items: LazyPagingItems<PhotoGridCell>,
+    onItemClick: OnMediaClick,
+    onZoomIn: () -> Unit,
+    onZoomOut: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val entries by remember(items) {
+        derivedStateOf { buildJustifiedEntries(items) }
+    }
+    val zoomInState = rememberUpdatedState(onZoomIn)
+    val zoomOutState = rememberUpdatedState(onZoomOut)
+    Box(
+        modifier = modifier.pointerInput(Unit) {
+            awaitEachGesture {
+                var localZoom = 1f
+                awaitFirstDown(requireUnconsumed = false)
+                do {
+                    val event = awaitPointerEvent()
+                    if (event.changes.count { it.pressed } >= 2) {
+                        val zoomChange = event.calculateZoom()
+                        if (zoomChange.isFinite() && zoomChange > 0f && zoomChange != 1f) {
+                            localZoom *= zoomChange
+                            when {
+                                localZoom > ZOOM_STEP_THRESHOLD -> {
+                                    zoomInState.value()
+                                    localZoom = 1f
+                                }
+                                localZoom < 1f / ZOOM_STEP_THRESHOLD -> {
+                                    zoomOutState.value()
+                                    localZoom = 1f
+                                }
+                            }
+                        }
+                        event.changes.forEach { it.consume() }
+                    }
+                } while (event.changes.any { it.pressed })
+            }
+        },
+    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            items(
+                items = entries,
+                key = { it.key },
+                contentType = { if (it is JustifiedEntry.Header) "header" else "row" },
+            ) { entry ->
+                when (entry) {
+                    is JustifiedEntry.Header -> SectionHeader(
+                        label = entry.label,
+                        modifier = Modifier.animateItem(),
+                    )
+                    is JustifiedEntry.Row -> JustifiedRowContent(
+                        entry = entry,
+                        onItemClick = onItemClick,
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun JustifiedRowContent(
+    entry: JustifiedEntry.Row,
+    onItemClick: OnMediaClick,
+    modifier: Modifier = Modifier,
+) {
+    if (entry.items.isEmpty()) return
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val gapDp = 2
+        val gapTotal = (entry.items.size - 1) * gapDp
+        val sumAspect = entry.items
+            .sumOf { it.media.aspectRatio.toDouble() }
+            .toFloat()
+            .coerceAtLeast(0.01f)
+        val rowHeightDp = ((maxWidth.value - gapTotal) / sumAspect).coerceAtLeast(40f)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(gapDp.dp),
+        ) {
+            entry.items.forEach { item ->
+                val cellWidthDp = item.media.aspectRatio * rowHeightDp
+                Box(
+                    modifier = Modifier
+                        .width(cellWidthDp.dp)
+                        .height(rowHeightDp.dp)
+                        .clickable { onItemClick(item.mediaIndex, item.media.id) },
+                ) {
+                    MediaThumb(
+                        uri = item.media.contentUri(),
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    if (item.media.type == MediaType.Video &&
+                        item.media.durationMs != null
+                    ) {
+                        DurationBadge(
+                            durationMs = item.media.durationMs,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(4.dp),
+                        )
+                    }
+                }
+            }
+        }
     }
 }

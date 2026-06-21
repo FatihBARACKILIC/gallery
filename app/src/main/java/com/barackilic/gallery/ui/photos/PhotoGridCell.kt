@@ -16,13 +16,16 @@ enum class ZoomLevel(val columns: Int) {
     L24(24),
     L12(12),
     L6(6),
-    L3(3);
+    L3(3),
+    // Justified row layout — `columns` unused; UI renders via custom row packing.
+    L5(0);
 
     fun zoomIn(): ZoomLevel = when (this) {
         L24 -> L12
         L12 -> L6
         L6 -> L3
-        L3 -> L3
+        L3 -> L5
+        L5 -> L5
     }
 
     fun zoomOut(): ZoomLevel = when (this) {
@@ -30,14 +33,17 @@ enum class ZoomLevel(val columns: Int) {
         L12 -> L24
         L6 -> L12
         L3 -> L6
+        L5 -> L3
     }
 
-    val canZoomIn: Boolean get() = this != L3
+    val canZoomIn: Boolean get() = this != L5
     val canZoomOut: Boolean get() = this != L24
+
+    val isJustified: Boolean get() = this == L5
 
     val headerGranularity: HeaderGranularity get() = when (this) {
         L3 -> HeaderGranularity.Relative
-        L6, L12 -> HeaderGranularity.Monthly
+        L6, L12, L5 -> HeaderGranularity.Monthly
         L24 -> HeaderGranularity.Yearly
     }
 }
