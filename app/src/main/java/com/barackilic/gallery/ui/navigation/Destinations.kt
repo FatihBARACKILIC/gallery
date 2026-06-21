@@ -11,6 +11,9 @@ import kotlinx.serialization.Serializable
 
 sealed interface Destination {
     @Serializable
+    data object Permission : Destination
+
+    @Serializable
     data object Photos : Destination
 
     @Serializable

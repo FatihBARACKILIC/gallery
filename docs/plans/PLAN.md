@@ -82,8 +82,10 @@ Her adım sonunda manuel test edilebilir. Her adım kendi commit'i. Kullanıcı 
 - `MainActivity` nav bar'ı yeni component'a geçer; tab kompozisyonu kullanıcı ile karara bağlanır
 - **Test:** Mevcut ekranlar yeni nav + tema ile derlenir; pill highlight çalışır
 
-### Adım 2 — Permission ekranı redesign
+### Adım 2 — Permission ekranı redesign ✅ (Adım 1'den önce yapıldı — 2026-06-21)
 - Logo + başlık + açıklama + birincil pill button + text "Daha sonra"
+- **Akış değişikliği:** Permission artık ayrı `Destination.Permission` — splash sonrası izin yoksa burası açılır, izin varsa direkt Photos. "Daha sonra" → Photos'a geçer, içerik yoksa empty state.
+- Photos/Albums/BucketPhotos'taki defansif `PermissionGate` korunur (izin runtime'da iptal edilirse veya kullanıcı "Daha sonra" demişse fallback)
 - **Test:** İlk açılış akışı bozulmaz
 
 ### Adım 3 — Fotoğraflar grid redesign
@@ -147,9 +149,9 @@ Her adım sonunda manuel test edilebilir. Her adım kendi commit'i. Kullanıcı 
 
 > v0.1 PLAN'ının "Ertelenmiş Kararlar"ı (DI / Koin, KSP flags) hâlâ geçerli — `PLAN-v0.1.md`'ye bakın.
 
-### Nav bar 4. tab — kullanıcı SS'i ile netleşecek (2026-06-20)
-- Design'da 4 tab görünüyor; mevcut 3 tab (Photos/Albums/Trash). 4. tab Search olduğu kesin; ama Trash'in tab olarak kalıp kalmayacağı veya Settings'in 4. tab olup Trash'in menü altında erişilmesi açık.
-- Karar: Adım 1'de kullanıcı SS'i (özellikle PhotosScreen alt nav'ı) yüksek çözünürlükle gelince netleşir. v0.2 boyunca mevcut Trash tab'ini koruyup yeni 4. tab olarak Search ekleme baz hipotez.
+### Nav bar 4. tab → Settings (karar: 2026-06-21)
+- 4 tab: Photos / Albums / Search / **Settings**. Trash, Settings içinden veya başka bir giriş noktasından erişilecek (Settings ekranı tasarımı geldiğinde netleşir).
+- **Uygulama zamanı:** Şimdi değil. Settings ekranı v0.3'te tasarlanacak; o iş başlayınca `TopLevelTab.Trash` → `Settings`'e çevrilir, Trash için yeni giriş eklenir. v0.2 boyunca mevcut Trash tab'i kalmaya devam eder.
 
 ### Dynamic color + tasarım disiplini (2026-06-20)
 - design.md "tek mavi vurgu" diyor; Material You dynamic açıkken seçim/FAB rengi kullanıcı wallpaper'ından gelir → disiplin kaybolur.

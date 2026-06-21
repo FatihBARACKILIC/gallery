@@ -14,7 +14,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -25,6 +27,7 @@ import androidx.navigation.compose.rememberNavController
 import com.barackilic.gallery.ui.navigation.Destination
 import com.barackilic.gallery.ui.navigation.GalleryNavHost
 import com.barackilic.gallery.ui.navigation.TopLevelTab
+import com.barackilic.gallery.ui.permission.hasMediaPermissions
 import com.barackilic.gallery.ui.theme.GalleryTheme
 
 class MainActivity : ComponentActivity() {
@@ -42,16 +45,23 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun GalleryRoot() {
+    val context = LocalContext.current
+    // Picked once at first composition; subsequent permission changes are handled by
+    // PermissionGate (inline fallback) inside content screens.
+    val startDestination: Destination = remember(context) {
+        if (hasMediaPermissions(context)) Destination.Photos else Destination.Permission
+    }
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = currentBackStackEntry?.destination
 
-    val showBottomBar =
-        currentDestination?.hasRoute(Destination.Viewer::class) != true
+    val hideBottomBar =
+        currentDestination?.hasRoute(Destination.Viewer::class) == true ||
+            currentDestination?.hasRoute(Destination.Permission::class) == true
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            if (showBottomBar) {
+            if (!hideBottomBar) {
                 GalleryBottomBar(
                     currentDestination = currentDestination,
                     onTabSelected = { tab -> navController.navigateToTab(tab) },
@@ -61,6 +71,7 @@ private fun GalleryRoot() {
     ) { innerPadding ->
         GalleryNavHost(
             navController = navController,
+            startDestination = startDestination,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),

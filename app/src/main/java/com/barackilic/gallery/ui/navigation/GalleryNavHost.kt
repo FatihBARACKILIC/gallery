@@ -7,6 +7,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.barackilic.gallery.ui.albums.AlbumsScreen
+import com.barackilic.gallery.ui.permission.PermissionScreen
 import com.barackilic.gallery.ui.photos.BucketPhotosScreen
 import com.barackilic.gallery.ui.photos.PhotosScreen
 import com.barackilic.gallery.ui.trash.TrashScreen
@@ -15,13 +16,20 @@ import com.barackilic.gallery.ui.viewer.ViewerScreen
 @Composable
 fun GalleryNavHost(
     navController: NavHostController,
+    startDestination: Destination,
     modifier: Modifier = Modifier,
 ) {
     NavHost(
         navController = navController,
-        startDestination = Destination.Photos,
+        startDestination = startDestination,
         modifier = modifier,
     ) {
+        composable<Destination.Permission> {
+            PermissionScreen(
+                onGranted = { navController.goToPhotosFromPermission() },
+                onSkip = { navController.goToPhotosFromPermission() },
+            )
+        }
         composable<Destination.Photos> {
             PhotosScreen(
                 onItemClick = { mediaIndex, mediaId ->
@@ -68,5 +76,12 @@ fun GalleryNavHost(
                 onBack = { navController.popBackStack() },
             )
         }
+    }
+}
+
+private fun NavHostController.goToPhotosFromPermission() {
+    navigate(Destination.Photos) {
+        popUpTo(Destination.Permission) { inclusive = true }
+        launchSingleTop = true
     }
 }
