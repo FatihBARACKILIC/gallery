@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteForever
 import androidx.compose.material.icons.outlined.Restore
@@ -43,7 +44,10 @@ import com.barackilic.gallery.ui.common.MediaThumb
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun TrashScreen(modifier: Modifier = Modifier) {
+fun TrashScreen(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val viewModel: TrashViewModel = koinViewModel()
     val items by viewModel.items.collectAsStateWithLifecycle()
     val selection by viewModel.selection.collectAsStateWithLifecycle()
@@ -66,6 +70,7 @@ fun TrashScreen(modifier: Modifier = Modifier) {
         topBar = {
             TrashTopBar(
                 selectionCount = selection.size,
+                onBack = onBack,
                 onClearSelection = viewModel::clearSelection,
                 onRestore = {
                     viewModel.buildRestoreRequest()?.let(restoreLauncher::launch)
@@ -93,6 +98,7 @@ fun TrashScreen(modifier: Modifier = Modifier) {
 @Composable
 private fun TrashTopBar(
     selectionCount: Int,
+    onBack: () -> Unit,
     onClearSelection: () -> Unit,
     onRestore: () -> Unit,
     onDelete: () -> Unit,
@@ -132,7 +138,17 @@ private fun TrashTopBar(
             },
         )
     } else {
-        TopAppBar(title = { Text(text = stringResource(R.string.trash_title)) })
+        TopAppBar(
+            title = { Text(text = stringResource(R.string.trash_title)) },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = stringResource(R.string.back),
+                    )
+                }
+            },
+        )
     }
 }
 

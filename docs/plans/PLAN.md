@@ -68,7 +68,7 @@ Heavy dep kararları (ML Kit, yedekleme servisi) ilgili release'in PLAN'ında "E
 ## Mimari Özet
 
 - **Tema:** `ThemeMode` enum (System/Light/Dark/Amoled) + dynamic color (✅). Ayarlardan değiştirme v0.3'te.
-- **Navigation:** Tab kompozisyonu kullanıcı SS'leri ile netleşecek. Şu an mevcut: Photos / Albums / Trash (3 tab). Design'da 4 tab var — muhtemel kompozisyon Photos / Albums / Search / (Trash ya da Settings). Adım 1'de kullanıcıyla karara bağlanır.
+- **Navigation:** 4 tab — Fotoğraflar / Albümler / Arama / Ayarlar (Adım 1'de kuruldu). Trash, Ayarlar altında bir alt-route. Settings ekranı v0.2'de minimal placeholder, v0.3'te tam tasarım gelecek.
 - **Selection mode:** Tek `SelectionState` holder pattern; Photos, AlbumDetail ve Trash'te ortak. PagingData'nın diff'lemesine müdahale etmiyoruz — seçili `Set<Long>` UI tarafında tutulur.
 - **Search:** v0.2'de basit filtre — MediaStore cursor query'sine filename + bucket name `LIKE %q%` koşulu. Type filter (foto/video) zaten projection'da var. Tam-metin / metadata index'i v0.3+.
 - **EXIF:** `androidx.exifinterface` ile lazım anda oku (viewer "info" tıklanınca); cache etme, küçük overhead.
@@ -77,10 +77,13 @@ Heavy dep kararları (ML Kit, yedekleme servisi) ilgili release'in PLAN'ında "E
 
 Her adım sonunda manuel test edilebilir. Her adım kendi commit'i. Kullanıcı SS göndermeden adıma başlama.
 
-### Adım 1 — Foundation: ortak component'lar + yeni nav bar
+### Adım 1 — Foundation: ortak component'lar + yeni nav bar ✅ (2026-06-21)
 - `GalleryTopBar`, `GalleryNavBar` (pill), `GalleryFab`, `SearchField`, `FilterChipRow`, `EmptyState` iskeletleri
-- `MainActivity` nav bar'ı yeni component'a geçer; tab kompozisyonu kullanıcı ile karara bağlanır
-- **Test:** Mevcut ekranlar yeni nav + tema ile derlenir; pill highlight çalışır
+- `MainActivity` nav bar'ı `GalleryNavBar`'a geçti; 4 tab: **Fotoğraflar / Albümler / Arama / Ayarlar**
+- Arama tab: `ui/search/SearchScreen.kt` placeholder ("Arama yakında" EmptyState ile)
+- Ayarlar tab: `ui/settings/SettingsScreen.kt` placeholder + tek `ListItem` "Çöp Kutusu" → TrashScreen
+- TrashScreen artık tab değil, Settings altı sub-route; `onBack` callback eklendi (back button)
+- Tüm UI string'leri Türkçe'ye çevrildi (Photos/Albums/Search/Settings + Trash içeriği)
 
 ### Adım 2 — Permission ekranı redesign ✅ (Adım 1'den önce yapıldı — 2026-06-21)
 - Logo + başlık + açıklama + birincil pill button + text "Daha sonra"
@@ -149,9 +152,9 @@ Her adım sonunda manuel test edilebilir. Her adım kendi commit'i. Kullanıcı 
 
 > v0.1 PLAN'ının "Ertelenmiş Kararlar"ı (DI / Koin, KSP flags) hâlâ geçerli — `PLAN-v0.1.md`'ye bakın.
 
-### Nav bar 4. tab → Settings (karar: 2026-06-21)
-- 4 tab: Photos / Albums / Search / **Settings**. Trash, Settings içinden veya başka bir giriş noktasından erişilecek (Settings ekranı tasarımı geldiğinde netleşir).
-- **Uygulama zamanı:** Şimdi değil. Settings ekranı v0.3'te tasarlanacak; o iş başlayınca `TopLevelTab.Trash` → `Settings`'e çevrilir, Trash için yeni giriş eklenir. v0.2 boyunca mevcut Trash tab'i kalmaya devam eder.
+### Nav bar 4. tab → Settings ✅ (uygulandı: 2026-06-21, Adım 1)
+- 4 tab: Fotoğraflar / Albümler / Arama / Ayarlar. Trash, Ayarlar ekranı altında tek `ListItem`'dan erişiliyor.
+- Settings ekranı v0.3'te tam tasarlanacak (tema seçimi, hakkında, vb. eklenir). v0.2 boyunca minimal: sadece Çöp Kutusu satırı.
 
 ### Dynamic color + tasarım disiplini (2026-06-20)
 - design.md "tek mavi vurgu" diyor; Material You dynamic açıkken seçim/FAB rengi kullanıcı wallpaper'ından gelir → disiplin kaybolur.

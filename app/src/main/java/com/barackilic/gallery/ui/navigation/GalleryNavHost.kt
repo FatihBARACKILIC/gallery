@@ -10,6 +10,8 @@ import com.barackilic.gallery.ui.albums.AlbumsScreen
 import com.barackilic.gallery.ui.permission.PermissionScreen
 import com.barackilic.gallery.ui.photos.BucketPhotosScreen
 import com.barackilic.gallery.ui.photos.PhotosScreen
+import com.barackilic.gallery.ui.search.SearchScreen
+import com.barackilic.gallery.ui.settings.SettingsScreen
 import com.barackilic.gallery.ui.trash.TrashScreen
 import com.barackilic.gallery.ui.viewer.ViewerScreen
 
@@ -49,7 +51,15 @@ fun GalleryNavHost(
                 },
             )
         }
-        composable<Destination.Trash> { TrashScreen() }
+        composable<Destination.Search> { SearchScreen() }
+        composable<Destination.Settings> {
+            SettingsScreen(
+                onTrashClick = { navController.navigate(Destination.Trash) },
+            )
+        }
+        composable<Destination.Trash> {
+            TrashScreen(onBack = { navController.popBackStack() })
+        }
         composable<Destination.AlbumPhotos> { backStackEntry ->
             val route: Destination.AlbumPhotos = backStackEntry.toRoute()
             BucketPhotosScreen(

@@ -1,8 +1,9 @@
 <resources>
     <string name="app_name">Galeri</string>
-    <string name="tab_photos">Photos</string>
-    <string name="tab_albums">Albums</string>
-    <string name="tab_trash">Trash</string>
+    <string name="tab_photos">Fotoğraflar</string>
+    <string name="tab_albums">Albümler</string>
+    <string name="tab_search">Arama</string>
+    <string name="tab_settings">Ayarlar</string>
 
     <string name="permission_screen_title">@string/app_name</string>
     <string name="permission_screen_description">Anılarınıza ulaşabilmek için cihazınızdaki fotoğraflara erişim izni gerekiyor.</string>
@@ -14,22 +15,28 @@
     <string name="permission_inline_title">Fotoğraflara erişim gerekli</string>
     <string name="permission_inline_action">İzin ver</string>
 
-    <string name="grouping_day">Day</string>
-    <string name="grouping_month">Month</string>
-    <string name="grouping_year">Year</string>
+    <string name="grouping_day">Gün</string>
+    <string name="grouping_month">Ay</string>
+    <string name="grouping_year">Yıl</string>
 
-    <string name="back">Back</string>
-    <string name="share">Share</string>
+    <string name="back">Geri</string>
+    <string name="share">Paylaş</string>
 
-    <string name="trash_title">Trash</string>
-    <string name="trash_empty">Items you delete will appear here for 30 days.</string>
+    <string name="search_placeholder_title">Arama yakında</string>
+    <string name="search_placeholder_description">Bu sekme v0.2 ilerleyen adımlarında etkinleşecek.</string>
+
+    <string name="settings_title">Ayarlar</string>
+    <string name="settings_trash_item">Çöp Kutusu</string>
+    <string name="settings_trash_item_description">Silinmiş öğeleri görüntüle ve geri yükle</string>
+
+    <string name="trash_title">Çöp Kutusu</string>
+    <string name="trash_empty">Silinmiş öğeler burada 30 gün boyunca durur.</string>
     <plurals name="trash_selected_count">
-        <item quantity="one">%1$d selected</item>
-        <item quantity="other">%1$d selected</item>
+        <item quantity="one">%1$d öğe seçildi</item>
+        <item quantity="other">%1$d öğe seçildi</item>
     </plurals>
-    <string name="trash_restore">Restore</string>
-    <string name="trash_delete_forever">Delete forever</string>
-    <string name="trash_send_to">Move to trash</string>
-    <string name="trash_clear_selection">Clear selection</string>
+    <string name="trash_restore">Geri yükle</string>
+    <string name="trash_delete_forever">Kalıcı olarak sil</string>
+    <string name="trash_send_to">Çöp kutusuna taşı</string>
+    <string name="trash_clear_selection">Seçimi temizle</string>
 </resources>
-
