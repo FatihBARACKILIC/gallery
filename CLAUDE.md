@@ -63,6 +63,7 @@ core/      Constants, permission helpers, shared util
 - **Permissions:** MVP UX "tüm medya" istiyor (`READ_MEDIA_IMAGES` + `READ_MEDIA_VIDEO`). `READ_MEDIA_VISUAL_USER_SELECTED` manifest'te **bilerek** deklare edildi (Step 7 cleanup) — sistem partial-access verirse lint susar ama akış hâlâ tam-erişim. **Manifest'ten silme.** "limited access banner + re-pick" ileride eklenecek; o iş yapılana kadar bu deklarasyon kullanılmıyor gibi görünebilir.
 - **Splash screen:** Android 12+ resmi yol (`androidx.core:core-splashscreen`). `Theme.Gallery.Splash` (values + values-night) sistem splash penceresinin tek kontrol noktasıdır; Compose'un buna erişimi yok çünkü splash Compose başlamadan önce çizilir. `MainActivity.onCreate`'in ilk satırı `installSplashScreen()` çağrısıdır, `super.onCreate`'den önce. **`themes.xml` veya `installSplashScreen()` "Compose kullanıyoruz, gerek yok" diye silinmez** — splash → MainActivity geçişi, exit animasyonu ve API 30 backport davranışı için zorunlu.
 - **Tema sistemi:** `ThemeMode` enum (System/Light/Dark/**Amoled**). 3 ColorScheme (`design.md` token'larına göre); **AMOLED dynamic color'ı bilinçli override eder** — saf siyahı koruması için. `GalleryTheme(themeMode = System, dynamicColor = true)` default'ları `MainActivity`'yi bozmaz. Token kaynağı tek: `design.md` → `GalleryColors` / `GalleryShapes` / `GallerySpacing` objelerine eşlenir. Inline hex veya magic number yazma.
+- **Tipografi:** `FontFamily.Default` — sistem fontu (Pixel'de Roboto, Samsung'da One UI Sans, vb.). **Bilerek bundle etmiyoruz.** Dynamic color'la aynı felsefe: arayüz sistemle harmanlanır, fotoğraflar öne çıkar; kullanıcının accessibility/özel font tercihine saygı gösterilir. `design.md` "Roboto" diyor ama bu Stitch AI'ın M3 varsayılanı, brand kararı değil — fidelity için Roboto Flex bundle etme.
 - **Repository boundary:** Return `Result<T>` or domain sealed types — do not throw across the layer. UI never sees `IOException`.
 - **State holder split:** Screen state → ViewModel. UI-only state (scroll position, dialog visibility) → `remember` / `rememberSaveable`.
 - **One ViewModel per screen.** `UiState` lives next to its screen as a `sealed interface` (typical states: `Loading`, `Empty`, `Success`, `NoPermission`, `Error`).
@@ -80,10 +81,6 @@ core/      Constants, permission helpers, shared util
 - Kullanıcı SS atar veya istek yapar; Claude doğrudan dosyaya atlamadan önce 2–4 net seçenek `AskUserQuestion`'la sunar (özellikle scope/dep/UX kararları için). Onay sonrası uygular.
 - `docs/plans/PLAN.md`'deki bir adıma kullanıcı **açıkça onay vermeden başlama**. Her adımın sonunda manuel test edilebilir bir durum hedeflenir; kullanıcı cihazda test eder, sonra commit atılır.
 - Commit'i Claude atmadan önce kullanıcı isteyene kadar bekler. `git push` yalnız kullanıcı açıkça söylerse yapılır.
-
-## Açık kararlar (henüz çözülmemiş)
-
-- **Roboto vs Roboto Flex.** `design.md` "Roboto" diyor ama Stitch AI'dan gelen palet/komponent görsellerinde tipografi etiketi "Roboto Flex". Çelişki. v0.2 Adım 1 (Foundation) başlamadan önce kullanıcıyla netleştirilmeli. Roboto Flex variable font; Compose'a manuel font dosyası dahil etmek + `FontFamily` kurulumu ister. Karar verilene kadar `Type.kt`'de `FontFamily.Default` (sistem Roboto) duruyor — sessizce Flex'e geçirme.
 
 ## Build constraints (AGP 9 transitional setup)
 

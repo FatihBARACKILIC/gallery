@@ -6,7 +6,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-// Type scale from design.md — Roboto (FontFamily.Default Android'de Roboto'dur).
+// Type scale from design.md. FontFamily.Default uses the device's system sans-serif
+// (Roboto on Pixel/AOSP, One UI Sans on Samsung, etc.) — we intentionally don't bundle
+// a font. See CLAUDE.md "Tipografi" for rationale.
 // design.md only specifies a subset of M3 styles; the rest fall back to M3 defaults.
 val Typography = Typography(
     displaySmall = TextStyle(
