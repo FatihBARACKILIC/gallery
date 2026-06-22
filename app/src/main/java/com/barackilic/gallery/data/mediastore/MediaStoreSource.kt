@@ -191,6 +191,9 @@ class MediaStoreSource(private val resolver: ContentResolver) {
                     acc.latestDate = date
                     acc.latestId = id
                 }
+                if (date > 0 && (acc.earliestDate == 0L || date < acc.earliestDate)) {
+                    acc.earliestDate = date
+                }
             }
         }
         return buckets.values
@@ -200,9 +203,10 @@ class MediaStoreSource(private val resolver: ContentResolver) {
                     name = acc.name.ifEmpty { "Unnamed" },
                     count = acc.count,
                     coverMediaId = acc.latestId,
+                    latestDateMillis = acc.latestDate,
+                    earliestDateMillis = acc.earliestDate,
                 )
             }
-            .sortedByDescending { it.count }
     }
 
     private class AlbumAccumulator(val bucketId: Long) {
@@ -210,6 +214,7 @@ class MediaStoreSource(private val resolver: ContentResolver) {
         var count: Int = 0
         var latestId: Long = 0L
         var latestDate: Long = 0L
+        var earliestDate: Long = 0L
     }
 }
 

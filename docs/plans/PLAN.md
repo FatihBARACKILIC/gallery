@@ -108,9 +108,14 @@ Her adım sonunda manuel test edilebilir. Her adım kendi commit'i. Kullanıcı 
 - Pinch out L3 → L5 geçişi
 - **Test:** Karışık portrait/landscape akıcı, layout shift yok
 
-### Adım 4 — Albümler grid redesign
-- 2-col card grid, kapak + isim + sayı
-- **Test:** Camera/Screenshots/Downloads doğru görünür
+### Adım 4 — Albümler grid redesign ✅ (2026-06-22)
+- 2-col card grid (default), kapak rounded 16dp + altta isim + "X öğe" (Locale("tr") format → "1.245 öğe")
+- Top bar title yok; sağda iki action: Sıralama (count desc / isim A-Z TR collator / son güncellenen / son oluşturulan) ve 3-nokta overflow (Daha büyük / Daha küçük)
+- Kolon zoom: 2 / 3 / 4 (`AlbumColumns` enum) — pinch + menü, Photos pattern. Tipografi rampası kolona göre: L2 titleMedium, L3 titleSmall, L4 labelMedium (L4'te sayım satırı gizli)
+- `Modifier.animateItem()` + `animateContentSize()` ile zoom geçişi yumuşak
+- `Album` modeline `latestDateMillis` + `earliestDateMillis` eklendi; `MediaStoreSource.queryAlbums` ham veri, sıralama UI'da
+- FAB yok (boş bucket MediaStore'da oluşturulamıyor — Adım 9 çoklu seçimle birlikte ele alınacak)
+- **Test:** Camera/Screenshots/Downloads doğru görünür, sıralama + pinch çalışır
 
 ### Adım 5 — Albüm Detay redesign
 - Top bar (back + isim + sayı), 3-col grid, FAB davranışı SS'e göre

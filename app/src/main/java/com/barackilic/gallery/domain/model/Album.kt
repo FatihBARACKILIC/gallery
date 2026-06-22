@@ -5,4 +5,6 @@ data class Album(
     val name: String,
     val count: Int,
     val coverMediaId: Long,
+    val latestDateMillis: Long,
+    val earliestDateMillis: Long,
 )
