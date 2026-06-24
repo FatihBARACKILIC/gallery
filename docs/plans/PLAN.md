@@ -136,9 +136,22 @@ Her adım sonunda manuel test edilebilir. Her adım kendi commit'i. Kullanıcı 
 - Photos/Albums grid'lerinde favori rozeti yok (Adım 11 arama filtresine bırakıldı — kullanıcı kararı: "şimdi yalnız viewer'da toggle")
 - **Test:** Pinch zoom + pan + tap toggle akıcı, heart tap'i kalıcı, 4sn idle'da bar fade-out, scrim açık fotolarda ikonları okutur
 
-### Adım 7 — Viewer (video) redesign
-- Alt seekbar + play/pause + ±10sn, yeni stil
-- **Test:** Video oynatma + seek + sayfa geçişi
+### Adım 7 — Viewer (video) redesign ✅ (2026-06-24)
+- `PlayerView.useController = false` — yerleşik kontrol bar'ı yerine Compose tarafında custom overlay
+- **Tek satır birleşik panel** (`VideoControlsOverlay`): frame strip arka plan + play/pause ortada overlay (Color.Black 0.55 circle) + mute sağa yaslı overlay. Bottom action bar (5 ikon) hemen altında, **tek scrim** içinde Column. Kullanıcı kararı: "bottom bar ve frame bir olsun ayrı section'a ayırma"
+- **Collapsed/expanded**: default `expanded = false` — frame'ler yüklenmez, strip gri placeholder. Strip'e tap → expand, frame'ler yüklenir. Sayfa değişince state reset (remember key = mediaUri). Kullanıcı kararı: "frame üzerine tıklamadan genişletmesin ki CPU yormayalım"
+- **VideoFrameStrip**: video boyunca 40 sabit-sayıda thumbnail (`MediaMetadataRetriever.getScaledFrameAtTime` + `OPTION_CLOSEST_SYNC`), 56dp kare, `horizontalScroll`'lu Row. Ortada beyaz dikey scrubber çizgisi sabit, strip altından kayar (expanded iken görünür). Spacer side padding (containerW/2 − thumbW/2) ile linear `scroll ↔ time` mapping
+- **Scrub delta badge**: kullanıcı strip'i sürüklerken ortadaki play/pause yerine `+3s` / `-12s` rozetli badge gösterilir. `scrubStartMs` finger-down anında snap, `scrubDeltaMs = currentMs − startMs`. Kullanıcı kararı: "ne kadar ilerlettiğimi göreyim"
+- `VideoFrameSource`: lazy MMR init — `frame()` ilk çağrılınca `MediaMetadataRetriever()` + `setDataSource` (yani collapsed iken hiç oluşmaz). LruCache(64) + Mutex (MMR thread-safe değil, tüm çağrılar serialize)
+- Touch-aware sync: `userIsTouching` flag (pointerInput awaitEachGesture). Touch sırasında auto-scroll kapatılır + scroll deltas seek'e map'lenir; release sonrası player position'a göre auto-scroll resume
+- Strip gesture modifier: `expanded ? pointerInput(drag tracking) : clickable { expand }` — collapsed iken tap expand, expanded iken drag scrub
+- `rememberPlayerSnapshot(player)`: `Player.Listener` (isPlaying / duration / volume) + 200ms position polling
+- Auto-hide pause-aware: `LaunchedEffect(systemBarsVisible, isVideoPage, isPlaying)` — video paused iken 4sn timer çalışmaz
+- **Ses default kapalı**: ExoPlayer build sonrası `volume = 0f`. Kullanıcı kararı: video aç → ses çalmasın
+- Mute toggle: `player.volume = 0f` ↔ `1f`. İkon `AutoMirrored.VolumeOff`/`VolumeUp` (RTL desteği)
+- ±10sn skip butonları kaldırıldı (frame strip ile detaylı seek var, tek satır overlay'de yer yetmedi)
+- Yeni dosyalar: `VideoControlsOverlay.kt`, `VideoFrameSource.kt`. Yeni dep yok
+- **Test:** Video aç → ses kapalı + strip gri (frame yok); strip'e tap → frame'ler yüklenir; strip sürükle → +Xs/-Xs badge, video o noktaya seek; oynarken merkez çizginin altından strip kayar; pause'da bar kalır; mute toggle ses açar
 
 ### Adım 8 — Trash redesign + empty state
 - 3-col grid, kalan gün rozeti (`DATE_EXPIRES`'tan), "Tümünü temizle"

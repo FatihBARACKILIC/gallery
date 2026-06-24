@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -98,6 +99,11 @@ fun ViewerScreen(
             .setSeekBackIncrementMs(SEEK_INCREMENT_MS)
             .setSeekForwardIncrementMs(SEEK_INCREMENT_MS)
             .build()
+            .apply {
+                // Muted by default — opening a video shouldn't blast audio.
+                // The user toggles via the overlay's mute control.
+                volume = 0f
+            }
     }
     DisposableEffect(player) {
         onDispose { player.release() }
@@ -114,16 +120,19 @@ fun ViewerScreen(
     var systemBarsVisible by rememberSaveable { mutableStateOf(true) }
     ImmersiveSystemBars(visible = systemBarsVisible)
 
-    // Auto-hide: bars reappear via tap or video-page-show, then fade after AUTO_HIDE_MS
-    // of no further interaction. Re-runs whenever systemBarsVisible flips to true.
-    LaunchedEffect(systemBarsVisible) {
-        if (systemBarsVisible) {
-            delay(AUTO_HIDE_MS)
-            systemBarsVisible = false
-        }
-    }
-
     var currentItem by remember { mutableStateOf<MediaItem?>(null) }
+    val isVideoPage = currentItem?.type == MediaType.Video
+    val playerSnapshot = rememberPlayerSnapshot(player)
+
+    // Auto-hide: bars reappear via tap or video-page-show, then fade after
+    // AUTO_HIDE_MS of no further interaction. While a video is paused we keep
+    // bars on screen — standard player UX so the user can find the play button.
+    LaunchedEffect(systemBarsVisible, isVideoPage, playerSnapshot.isPlaying) {
+        if (!systemBarsVisible) return@LaunchedEffect
+        if (isVideoPage && !playerSnapshot.isPlaying) return@LaunchedEffect
+        delay(AUTO_HIDE_MS)
+        systemBarsVisible = false
+    }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -164,26 +173,51 @@ fun ViewerScreen(
                 onShare = currentItem?.let { item -> { shareMediaItem(context, item) } },
             )
         }
-        // Hide bottom action bar on video pages — PlayerView ships its own seekbar
-        // + play/pause controller at the same position, and overlapping them is
-        // unusable. Adım 7 will replace PlayerView's controller with a custom one
-        // that integrates these actions.
+        // Stacked bottom UI: action bar (always when bars visible), and on video
+        // pages the custom video controls overlay sits directly above it.
+        // Single scrim wraps both rows — kullanıcı bir bütün olarak görsün.
         AnimatedVisibility(
-            visible = systemBarsVisible && currentItem?.type != MediaType.Video,
+            visible = systemBarsVisible,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
-            ViewerBottomBar(
-                isFavorite = isFavorite,
-                onShare = currentItem?.let { item -> { shareMediaItem(context, item) } },
-                onToggleFavorite = currentItem?.let { { viewModel.toggleCurrentFavorite() } },
-                onEdit = showComingSoon,
-                onTrash = currentItem?.let { item ->
-                    { trashLauncher.launch(viewModel.buildTrashRequest(item)) }
-                },
-                onInfo = showComingSoon,
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            listOf(Color.Transparent, Color.Black.copy(alpha = SCRIM_ALPHA)),
+                        ),
+                    ),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding(),
+                ) {
+                    if (isVideoPage) {
+                        val videoUri = currentItem?.contentUri()
+                        if (videoUri != null) {
+                            VideoControlsOverlay(
+                                player = player,
+                                snapshot = playerSnapshot,
+                                mediaUri = videoUri,
+                            )
+                        }
+                    }
+                    ViewerBottomBar(
+                        isFavorite = isFavorite,
+                        onShare = currentItem?.let { item -> { shareMediaItem(context, item) } },
+                        onToggleFavorite = currentItem?.let { { viewModel.toggleCurrentFavorite() } },
+                        onEdit = showComingSoon,
+                        onTrash = currentItem?.let { item ->
+                            { trashLauncher.launch(viewModel.buildTrashRequest(item)) }
+                        },
+                        onInfo = showComingSoon,
+                    )
+                }
+            }
         }
         SnackbarHost(
             hostState = snackbarHostState,
@@ -314,9 +348,10 @@ private fun VideoPage(
             AndroidView(
                 factory = { ctx ->
                     PlayerView(ctx).apply {
-                        useController = true
-                        setShowRewindButton(true)
-                        setShowFastForwardButton(true)
+                        // Custom Compose overlay replaces ExoPlayer's built-in controller;
+                        // see VideoControlsOverlay. PlayerView still handles surface +
+                        // aspect — useController stays off.
+                        useController = false
                         setBackgroundColor(android.graphics.Color.BLACK)
                     }
                 },
@@ -386,20 +421,13 @@ private fun ViewerBottomBar(
     onTrash: (() -> Unit)?,
     onInfo: () -> Unit,
 ) {
-    // Mirror of top scrim (transparent → dark) so icons are legible above bright photo bottoms.
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                brush = Brush.verticalGradient(
-                    listOf(Color.Transparent, Color.Black.copy(alpha = SCRIM_ALPHA)),
-                ),
-            ),
-    ) {
+    // Scrim ve navigationBarsPadding üst kapsayıcı Column'da uygulanır — bu Row
+    // sadece ikonları layout'lar, böylece video strip ile aynı scrim altında
+    // bir bütün gibi durur.
+    Box(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
                 .padding(horizontal = 8.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,

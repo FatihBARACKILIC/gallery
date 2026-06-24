@@ -64,4 +64,9 @@
     <string name="viewer_edit">Düzenle</string>
     <string name="viewer_info">Bilgi</string>
     <string name="coming_soon">Bu özellik yakında eklenecek</string>
+
+    <string name="video_play">Oynat</string>
+    <string name="video_pause">Duraklat</string>
+    <string name="video_mute">Sessize al</string>
+    <string name="video_unmute">Sesi aç</string>
 </resources>
