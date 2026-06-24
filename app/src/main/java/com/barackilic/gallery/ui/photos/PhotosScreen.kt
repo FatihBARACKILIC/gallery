@@ -143,12 +143,17 @@ private fun PhotoGridContent(
     RefreshOnResume(items)
     val onZoomIn: () -> Unit = { viewModel.setZoomLevel(zoomLevel.zoomIn()) }
     val onZoomOut: () -> Unit = { viewModel.setZoomLevel(zoomLevel.zoomOut()) }
+    val cellCorner = cellCornerFor(zoomLevel)
+    val cellSpacing = cellSpacingFor(zoomLevel)
     if (zoomLevel.isJustified) {
         JustifiedLayout(
             items = items,
             onItemClick = onItemClick,
             onZoomIn = onZoomIn,
             onZoomOut = onZoomOut,
+            rowSpacing = cellSpacing,
+            itemSpacing = cellSpacing,
+            cellCornerRadius = cellCorner,
             modifier = modifier.fillMaxSize(),
         )
     } else {
@@ -161,6 +166,8 @@ private fun PhotoGridContent(
             },
             onZoomIn = onZoomIn,
             onZoomOut = onZoomOut,
+            cellSpacing = cellSpacing,
+            cellCornerRadius = cellCorner,
             modifier = modifier.fillMaxSize(),
         )
     }

@@ -31,7 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.barackilic.gallery.R
@@ -41,7 +40,8 @@ import com.barackilic.gallery.ui.photos.JustifiedLayout
 import com.barackilic.gallery.ui.photos.OnMediaClick
 import com.barackilic.gallery.ui.photos.PhotoGrid
 import com.barackilic.gallery.ui.photos.RefreshOnResume
-import com.barackilic.gallery.ui.photos.ZoomLevel
+import com.barackilic.gallery.ui.photos.cellCornerFor
+import com.barackilic.gallery.ui.photos.cellSpacingFor
 import com.barackilic.gallery.ui.photos.computeMediaIndex
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -114,9 +114,6 @@ fun BucketPhotosScreen(
                 BucketSubtitle(stats = stats)
                 val onZoomIn: () -> Unit = { viewModel.setZoomLevel(zoomLevel.zoomIn()) }
                 val onZoomOut: () -> Unit = { viewModel.setZoomLevel(zoomLevel.zoomOut()) }
-                // Corner radius needs to scale with cell size — a fixed 8dp turns sub-50dp
-                // cells (L12/L24) into circles. Spacing scales mildly too so dense grids
-                // don't get drowned in gaps.
                 val cellCorner = cellCornerFor(zoomLevel)
                 val cellSpacing = cellSpacingFor(zoomLevel)
                 if (zoomLevel.isJustified) {
@@ -268,22 +265,6 @@ private fun BucketOverflowMenu(
             )
         }
     }
-}
-
-private fun cellCornerFor(zoom: ZoomLevel): Dp = when (zoom) {
-    ZoomLevel.L3 -> 8.dp
-    ZoomLevel.L5 -> 6.dp
-    ZoomLevel.L6 -> 4.dp
-    ZoomLevel.L12 -> 2.dp
-    ZoomLevel.L24 -> 0.dp
-}
-
-private fun cellSpacingFor(zoom: ZoomLevel): Dp = when (zoom) {
-    ZoomLevel.L3 -> 4.dp
-    ZoomLevel.L5 -> 3.dp
-    ZoomLevel.L6 -> 3.dp
-    ZoomLevel.L12 -> 2.dp
-    ZoomLevel.L24 -> 1.dp
 }
 
 private val TR_LOCALE: Locale = Locale.forLanguageTag("tr")
