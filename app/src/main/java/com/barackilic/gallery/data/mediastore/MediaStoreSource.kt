@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import com.barackilic.gallery.domain.model.Album
+import com.barackilic.gallery.domain.model.BucketStats
 import com.barackilic.gallery.domain.model.MediaItem
 import com.barackilic.gallery.domain.model.MediaType
 import com.barackilic.gallery.domain.model.TrashedItem
@@ -42,7 +43,7 @@ class MediaStoreSource(private val resolver: ContentResolver) {
         MediaStore.Files.FileColumns.DATE_MODIFIED,
     )
 
-    private val sortOrder =
+    private val defaultSortOrder =
         "COALESCE(${MediaStore.Files.FileColumns.DATE_TAKEN}, " +
             "${MediaStore.Files.FileColumns.DATE_MODIFIED} * 1000) DESC, " +
             "${MediaStore.Files.FileColumns._ID} DESC"
@@ -73,11 +74,16 @@ class MediaStoreSource(private val resolver: ContentResolver) {
         resolver.unregisterContentObserver(observer)
     }
 
-    fun page(offset: Int, limit: Int, bucketId: Long? = null): List<MediaItem> {
+    fun page(
+        offset: Int,
+        limit: Int,
+        bucketId: Long? = null,
+        sortOrder: String? = null,
+    ): List<MediaItem> {
         val args = Bundle().apply {
             putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection(bucketId))
             putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, selectionArgs(bucketId))
-            putString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER, sortOrder)
+            putString(ContentResolver.QUERY_ARG_SQL_SORT_ORDER, sortOrder ?: defaultSortOrder)
             putInt(ContentResolver.QUERY_ARG_LIMIT, limit)
             putInt(ContentResolver.QUERY_ARG_OFFSET, offset)
         }
@@ -118,6 +124,30 @@ class MediaStoreSource(private val resolver: ContentResolver) {
             }
         }
         return result
+    }
+
+    fun bucketStats(bucketId: Long): BucketStats {
+        val args = Bundle().apply {
+            putString(ContentResolver.QUERY_ARG_SQL_SELECTION, selection(bucketId))
+            putStringArray(ContentResolver.QUERY_ARG_SQL_SELECTION_ARGS, selectionArgs(bucketId))
+        }
+        var count = 0
+        var totalBytes = 0L
+        // SUM() via SQL is unreliable through MediaProvider across OEMs; loop the cursor.
+        // Bounded by the album's media count — bucket scope keeps this fast.
+        resolver.query(
+            collection,
+            arrayOf(MediaStore.Files.FileColumns.SIZE),
+            args,
+            null,
+        )?.use { c ->
+            val sizeCol = c.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE)
+            while (c.moveToNext()) {
+                count++
+                totalBytes += c.getLong(sizeCol)
+            }
+        }
+        return BucketStats(count = count, totalBytes = totalBytes)
     }
 
     fun queryTrashed(): List<TrashedItem> {

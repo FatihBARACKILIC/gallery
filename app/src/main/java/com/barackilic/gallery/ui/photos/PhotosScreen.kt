@@ -21,8 +21,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -31,7 +31,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
@@ -43,8 +42,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -63,7 +65,6 @@ import com.barackilic.gallery.ui.common.MediaThumb
 import com.barackilic.gallery.ui.common.PermissionGate
 import com.barackilic.gallery.ui.common.SectionHeader
 import org.koin.androidx.compose.koinViewModel
-import org.koin.core.parameter.parametersOf
 
 typealias OnMediaClick = (mediaIndex: Int, mediaId: Long) -> Unit
 
@@ -94,50 +95,6 @@ fun PhotosScreen(
                 onItemClick = onItemClick,
                 modifier = Modifier.padding(padding),
             )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun BucketPhotosScreen(
-    bucketId: Long,
-    title: String,
-    onBack: () -> Unit,
-    onItemClick: OnMediaClick,
-    modifier: Modifier = Modifier,
-) {
-    val viewModel: PhotosViewModel = koinViewModel { parametersOf(bucketId) }
-    val zoomLevel by viewModel.zoomLevel.collectAsState()
-    Scaffold(
-        modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text(title) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = stringResource(R.string.back),
-                        )
-                    }
-                },
-                actions = {
-                    PhotoOverflowMenu(
-                        current = zoomLevel,
-                        onZoomIn = { viewModel.setZoomLevel(zoomLevel.zoomIn()) },
-                        onZoomOut = { viewModel.setZoomLevel(zoomLevel.zoomOut()) },
-                    )
-                },
-            )
-        },
-    ) { padding ->
-        PermissionGate(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
-            PhotoGridContent(viewModel = viewModel, onItemClick = onItemClick)
         }
     }
 }
@@ -211,13 +168,16 @@ private fun PhotoGridContent(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun PhotoGrid(
+internal fun PhotoGrid(
     items: LazyPagingItems<PhotoGridCell>,
     columns: Int,
     onCellClick: (cellIndex: Int, mediaId: Long) -> Unit,
     onZoomIn: () -> Unit,
     onZoomOut: () -> Unit,
     modifier: Modifier = Modifier,
+    cellSpacing: Dp = 2.dp,
+    contentPadding: PaddingValues = PaddingValues(2.dp),
+    cellCornerRadius: Dp = 0.dp,
 ) {
     val zoomInState = rememberUpdatedState(onZoomIn)
     val zoomOutState = rememberUpdatedState(onZoomOut)
@@ -256,9 +216,9 @@ private fun PhotoGrid(
         LazyVerticalGrid(
             modifier = Modifier.fillMaxSize(),
             columns = GridCells.Fixed(columns),
-            contentPadding = PaddingValues(2.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            contentPadding = contentPadding,
+            horizontalArrangement = Arrangement.spacedBy(cellSpacing),
+            verticalArrangement = Arrangement.spacedBy(cellSpacing),
         ) {
             items(
                 count = items.itemCount,
@@ -277,6 +237,7 @@ private fun PhotoGrid(
                     is PhotoGridCell.Item -> MediaCell(
                         item = cell.media,
                         onClick = { onCellClick(index, cell.media.id) },
+                        cornerRadius = cellCornerRadius,
                         modifier = Modifier.animateItem(),
                     )
                     null -> Box(Modifier.aspectRatio(1f))
@@ -286,18 +247,20 @@ private fun PhotoGrid(
     }
 }
 
-private const val ZOOM_STEP_THRESHOLD = 1.25f
+internal const val ZOOM_STEP_THRESHOLD = 1.25f
 
 @Composable
-private fun MediaCell(
+internal fun MediaCell(
     item: MediaItem,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    cornerRadius: Dp = 0.dp,
 ) {
     Box(
         modifier = modifier
             .fillMaxSize()
             .aspectRatio(1f)
+            .clip(if (cornerRadius > 0.dp) RoundedCornerShape(cornerRadius) else RectangleShape)
             .clickable(onClick = onClick),
     ) {
         MediaThumb(
@@ -315,7 +278,7 @@ private fun MediaCell(
     }
 }
 
-private fun computeMediaIndex(
+internal fun computeMediaIndex(
     items: LazyPagingItems<PhotoGridCell>,
     cellIndex: Int,
 ): Int {
@@ -337,7 +300,7 @@ private fun PhotoGridCell.cellContentType(): Any = when (this) {
 }
 
 @Composable
-private fun RefreshOnResume(items: LazyPagingItems<*>) {
+internal fun RefreshOnResume(items: LazyPagingItems<*>) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val currentItems by rememberUpdatedState(items)
     DisposableEffect(lifecycleOwner) {
@@ -353,12 +316,15 @@ private fun RefreshOnResume(items: LazyPagingItems<*>) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun JustifiedLayout(
+internal fun JustifiedLayout(
     items: LazyPagingItems<PhotoGridCell>,
     onItemClick: OnMediaClick,
     onZoomIn: () -> Unit,
     onZoomOut: () -> Unit,
     modifier: Modifier = Modifier,
+    rowSpacing: Dp = 2.dp,
+    itemSpacing: Dp = 2.dp,
+    cellCornerRadius: Dp = 0.dp,
 ) {
     val entries by remember(items) {
         derivedStateOf { buildJustifiedEntries(items) }
@@ -395,7 +361,7 @@ private fun JustifiedLayout(
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(rowSpacing),
         ) {
             items(
                 items = entries,
@@ -410,6 +376,8 @@ private fun JustifiedLayout(
                     is JustifiedEntry.Row -> JustifiedRowContent(
                         entry = entry,
                         onItemClick = onItemClick,
+                        itemSpacing = itemSpacing,
+                        cellCornerRadius = cellCornerRadius,
                         modifier = Modifier.animateItem(),
                     )
                 }
@@ -423,10 +391,12 @@ private fun JustifiedRowContent(
     entry: JustifiedEntry.Row,
     onItemClick: OnMediaClick,
     modifier: Modifier = Modifier,
+    itemSpacing: Dp = 2.dp,
+    cellCornerRadius: Dp = 0.dp,
 ) {
     if (entry.items.isEmpty()) return
     BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
-        val gapDp = 2
+        val gapDp = itemSpacing.value
         val gapTotal = (entry.items.size - 1) * gapDp
         val sumAspect = entry.items
             .sumOf { it.media.aspectRatio.toDouble() }
@@ -435,7 +405,7 @@ private fun JustifiedRowContent(
         val rowHeightDp = ((maxWidth.value - gapTotal) / sumAspect).coerceAtLeast(40f)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(gapDp.dp),
+            horizontalArrangement = Arrangement.spacedBy(itemSpacing),
         ) {
             entry.items.forEach { item ->
                 val cellWidthDp = item.media.aspectRatio * rowHeightDp
@@ -443,6 +413,10 @@ private fun JustifiedRowContent(
                     modifier = Modifier
                         .width(cellWidthDp.dp)
                         .height(rowHeightDp.dp)
+                        .clip(
+                            if (cellCornerRadius > 0.dp) RoundedCornerShape(cellCornerRadius)
+                            else RectangleShape,
+                        )
                         .clickable { onItemClick(item.mediaIndex, item.media.id) },
                 ) {
                     MediaThumb(

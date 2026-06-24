@@ -9,6 +9,7 @@ import com.barackilic.gallery.domain.repository.AlbumRepository
 import com.barackilic.gallery.domain.repository.MediaRepository
 import com.barackilic.gallery.domain.repository.TrashRepository
 import com.barackilic.gallery.ui.albums.AlbumsViewModel
+import com.barackilic.gallery.ui.albums.BucketPhotosViewModel
 import com.barackilic.gallery.ui.photos.PhotosViewModel
 import com.barackilic.gallery.ui.trash.TrashViewModel
 import com.barackilic.gallery.ui.viewer.ViewerViewModel
@@ -28,6 +29,7 @@ val appModule = module {
     single<TrashRepository> { TrashRepositoryImpl(get()) }
     viewModel { params -> PhotosViewModel(get(), params.getOrNull<Long>()) }
     viewModel { AlbumsViewModel(get()) }
+    viewModel { params -> BucketPhotosViewModel(get(), params.get<Long>()) }
     viewModel { params -> ViewerViewModel(get(), get(), params.getOrNull<Long>()) }
     viewModel { TrashViewModel(get(), get()) }
 }

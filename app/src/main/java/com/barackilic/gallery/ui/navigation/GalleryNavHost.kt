@@ -7,8 +7,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.barackilic.gallery.ui.albums.AlbumsScreen
+import com.barackilic.gallery.ui.albums.BucketPhotosScreen
 import com.barackilic.gallery.ui.permission.PermissionScreen
-import com.barackilic.gallery.ui.photos.BucketPhotosScreen
 import com.barackilic.gallery.ui.photos.PhotosScreen
 import com.barackilic.gallery.ui.search.SearchScreen
 import com.barackilic.gallery.ui.settings.SettingsScreen

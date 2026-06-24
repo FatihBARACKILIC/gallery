@@ -117,9 +117,14 @@ Her adım sonunda manuel test edilebilir. Her adım kendi commit'i. Kullanıcı 
 - FAB yok (boş bucket MediaStore'da oluşturulamıyor — Adım 9 çoklu seçimle birlikte ele alınacak)
 - **Test:** Camera/Screenshots/Downloads doğru görünür, sıralama + pinch çalışır
 
-### Adım 5 — Albüm Detay redesign
-- Top bar (back + isim + sayı), 3-col grid, FAB davranışı SS'e göre
-- **Test:** Albüm içine giriş
+### Adım 5 — Albüm Detay redesign ✅ (2026-06-24)
+- Top bar: back + albüm adı + sıralama icon + 3-nokta overflow. Search/FAB yok (kullanıcı kararı: sıralama tek anlamlı action; FAB ileride çoklu seçimle paylaşıma bağlanacak)
+- Subtitle: `"%X öğe • %Y GB"` TR locale (thousand sep "." / decimal sep "," — `NumberFormat` + `DecimalFormat(tr)`). `BucketStats(count, totalBytes)` `MediaStoreSource.bucketStats(bucketId)` ile cursor walk ile hesaplanır
+- 3-col default + Photos zoom sistemi (L24/L12/L6/L3 + L5 justified) — pinch + menü, Photos pattern'i yeniden kullanıyor (`PhotoGrid`/`JustifiedLayout`/`MediaCell`/`computeMediaIndex` artık internal, `cellSpacing`/`cellCornerRadius` parametreli; album detayda 4dp spacing + 8dp rounded). `BucketPhotosViewModel.gridCells` `combine(zoom, group)` + `flatMapLatest(sort)` ile reactive
+- Sıralama (6 seçenek, default `CreatedDesc`): Oluşturulma (yeni→eski / eski→yeni), Değiştirilme (yeni→eski / eski→yeni), İsim (A→Z / Z→A). `BucketPhotosSortOrder` → SQL ORDER BY → `MediaPagingSource(sortOrder)` → `MediaStoreSource.page(sortOrder)`. İsim sort `COLLATE NOCASE`; TR collator paged data'da uygulanamaz
+- Tarih gruplandırma: opt-in, 3-nokta menüde "Tarihe göre grupla" toggle. Default kapalı (SS sade); açıldığında `insertSeparators` ile `headerBetween` zoom granularity'sine göre header üretir
+- `BucketPhotosScreen` artık `ui/albums/` altında (eski `ui.photos.BucketPhotosScreen` silindi); navigasyon import güncel
+- **Test:** Kamera/Screenshots gibi farklı albümlerde subtitle doğru, sıralama her seçenekte yeniden yükler, grup toggle açılınca header'lar gelir, pinch L24..L5 geçişi sorunsuz
 
 ### Adım 6 — Viewer (foto) redesign
 - Minimal top bar + alt action bar (share/fav/edit/trash/info), scrim gradient, otomatik gizleme

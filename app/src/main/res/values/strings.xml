@@ -29,6 +29,18 @@
     <string name="albums_sort_latest_created">Son oluşturulan</string>
     <string name="albums_item_count">%1$s öğe</string>
 
+    <string name="bucket_sort_created_desc">Oluşturulma (yeni → eski)</string>
+    <string name="bucket_sort_created_asc">Oluşturulma (eski → yeni)</string>
+    <string name="bucket_sort_modified_desc">Değiştirilme (yeni → eski)</string>
+    <string name="bucket_sort_modified_asc">Değiştirilme (eski → yeni)</string>
+    <string name="bucket_sort_name_asc">İsim (A → Z)</string>
+    <string name="bucket_sort_name_desc">İsim (Z → A)</string>
+    <string name="bucket_group_by_date">Tarihe göre grupla</string>
+    <string name="bucket_subtitle">%1$s öğe • %2$s</string>
+    <string name="bucket_size_gb">%1$s GB</string>
+    <string name="bucket_size_mb">%1$s MB</string>
+    <string name="bucket_size_kb">%1$s KB</string>
+
     <string name="search_placeholder_title">Arama yakında</string>
     <string name="search_placeholder_description">Bu sekme v0.2 ilerleyen adımlarında etkinleşecek.</string>
 
