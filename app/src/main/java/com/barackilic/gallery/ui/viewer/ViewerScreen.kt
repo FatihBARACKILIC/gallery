@@ -9,36 +9,52 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -57,7 +73,9 @@ import com.barackilic.gallery.data.mediastore.contentUri
 import com.barackilic.gallery.domain.model.MediaItem
 import com.barackilic.gallery.domain.model.MediaType
 import com.barackilic.gallery.ui.common.MediaThumbRequest
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import me.saket.telephoto.zoomable.coil3.ZoomableAsyncImage
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -72,6 +90,7 @@ fun ViewerScreen(
 ) {
     val viewModel: ViewerViewModel = koinViewModel { parametersOf(bucketId) }
     val items = viewModel.items.collectAsLazyPagingItems()
+    val isFavorite by viewModel.isCurrentFavorite.collectAsState()
 
     val context = LocalContext.current
     val player = remember {
@@ -95,7 +114,23 @@ fun ViewerScreen(
     var systemBarsVisible by rememberSaveable { mutableStateOf(true) }
     ImmersiveSystemBars(visible = systemBarsVisible)
 
+    // Auto-hide: bars reappear via tap or video-page-show, then fade after AUTO_HIDE_MS
+    // of no further interaction. Re-runs whenever systemBarsVisible flips to true.
+    LaunchedEffect(systemBarsVisible) {
+        if (systemBarsVisible) {
+            delay(AUTO_HIDE_MS)
+            systemBarsVisible = false
+        }
+    }
+
     var currentItem by remember { mutableStateOf<MediaItem?>(null) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val comingSoonText = stringResource(R.string.coming_soon)
+    val showComingSoon: () -> Unit = {
+        scope.launch { snackbarHostState.showSnackbar(comingSoonText) }
+    }
 
     val trashLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
@@ -112,7 +147,10 @@ fun ViewerScreen(
             player = player,
             onToggleBars = { systemBarsVisible = !systemBarsVisible },
             onVideoPageShown = { systemBarsVisible = true },
-            onCurrentItemChanged = { currentItem = it },
+            onCurrentItemChanged = { item ->
+                currentItem = item
+                viewModel.setCurrentMediaId(item?.id)
+            },
             modifier = Modifier.fillMaxSize(),
         )
         AnimatedVisibility(
@@ -124,12 +162,36 @@ fun ViewerScreen(
             ViewerTopBar(
                 onBack = onBack,
                 onShare = currentItem?.let { item -> { shareMediaItem(context, item) } },
+            )
+        }
+        // Hide bottom action bar on video pages — PlayerView ships its own seekbar
+        // + play/pause controller at the same position, and overlapping them is
+        // unusable. Adım 7 will replace PlayerView's controller with a custom one
+        // that integrates these actions.
+        AnimatedVisibility(
+            visible = systemBarsVisible && currentItem?.type != MediaType.Video,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter),
+        ) {
+            ViewerBottomBar(
+                isFavorite = isFavorite,
+                onShare = currentItem?.let { item -> { shareMediaItem(context, item) } },
+                onToggleFavorite = currentItem?.let { { viewModel.toggleCurrentFavorite() } },
+                onEdit = showComingSoon,
                 onTrash = currentItem?.let { item ->
                     { trashLauncher.launch(viewModel.buildTrashRequest(item)) }
                 },
-                modifier = Modifier.statusBarsPadding(),
+                onInfo = showComingSoon,
             )
         }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = SNACKBAR_BOTTOM_OFFSET.dp),
+        )
     }
 }
 
@@ -165,7 +227,8 @@ private fun ViewerPager(
                 onCurrentItemChanged(current)
                 if (current?.type == MediaType.Video) {
                     val mediaId = current.id.toString()
-                    if (player.currentMediaItem?.mediaId != mediaId) {
+                    val isNewVideo = player.currentMediaItem?.mediaId != mediaId
+                    if (isNewVideo) {
                         player.setMediaItem(
                             Media3MediaItem.Builder()
                                 .setMediaId(mediaId)
@@ -173,8 +236,12 @@ private fun ViewerPager(
                                 .build(),
                         )
                         player.prepare()
+                        // Auto-play only on first visit. Returning to a video we
+                        // already paused (swiped to a photo and back) keeps it
+                        // paused — user pressed back here for a reason; resume
+                        // is a deliberate tap on PlayerView's play button.
+                        player.playWhenReady = true
                     }
-                    player.playWhenReady = true
                     onVideoPageShown()
                 } else {
                     player.pause()
@@ -266,45 +333,124 @@ private fun VideoPage(
 private fun ViewerTopBar(
     onBack: () -> Unit,
     onShare: (() -> Unit)?,
-    onTrash: (() -> Unit)?,
-    modifier: Modifier = Modifier,
 ) {
-    TopAppBar(
-        title = {},
-        navigationIcon = {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = stringResource(R.string.back),
-                    tint = Color.White,
-                )
-            }
-        },
-        actions = {
-            if (onShare != null) {
-                IconButton(onClick = onShare) {
+    // Scrim: dark → transparent vertical gradient so white icons stay readable when
+    // the photo top is bright (sky, snow). Wraps the bar so the gradient extends
+    // through status-bar inset too.
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                brush = Brush.verticalGradient(
+                    listOf(Color.Black.copy(alpha = SCRIM_ALPHA), Color.Transparent),
+                ),
+            ),
+    ) {
+        TopAppBar(
+            title = {},
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = stringResource(R.string.back),
+                        tint = Color.White,
+                    )
+                }
+            },
+            actions = {
+                IconButton(
+                    onClick = onShare ?: {},
+                    enabled = onShare != null,
+                ) {
                     Icon(
                         imageVector = Icons.Outlined.Share,
                         contentDescription = stringResource(R.string.share),
                         tint = Color.White,
                     )
                 }
-            }
-            if (onTrash != null) {
-                IconButton(onClick = onTrash) {
-                    Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = stringResource(R.string.trash_send_to),
-                        tint = Color.White,
-                    )
-                }
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.Black.copy(alpha = 0.5f),
-        ),
-        modifier = modifier,
-    )
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.Transparent,
+            ),
+            modifier = Modifier.statusBarsPadding(),
+        )
+    }
+}
+
+@Composable
+private fun ViewerBottomBar(
+    isFavorite: Boolean,
+    onShare: (() -> Unit)?,
+    onToggleFavorite: (() -> Unit)?,
+    onEdit: () -> Unit,
+    onTrash: (() -> Unit)?,
+    onInfo: () -> Unit,
+) {
+    // Mirror of top scrim (transparent → dark) so icons are legible above bright photo bottoms.
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                brush = Brush.verticalGradient(
+                    listOf(Color.Transparent, Color.Black.copy(alpha = SCRIM_ALPHA)),
+                ),
+            ),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 8.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ViewerActionIcon(
+                icon = Icons.Outlined.Share,
+                contentDescription = stringResource(R.string.share),
+                onClick = onShare,
+            )
+            ViewerActionIcon(
+                icon = if (isFavorite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                contentDescription = stringResource(
+                    if (isFavorite) R.string.viewer_unfavorite else R.string.viewer_favorite,
+                ),
+                onClick = onToggleFavorite,
+            )
+            ViewerActionIcon(
+                icon = Icons.Outlined.Edit,
+                contentDescription = stringResource(R.string.viewer_edit),
+                onClick = onEdit,
+            )
+            ViewerActionIcon(
+                icon = Icons.Outlined.Delete,
+                contentDescription = stringResource(R.string.trash_send_to),
+                onClick = onTrash,
+            )
+            ViewerActionIcon(
+                icon = Icons.Outlined.Info,
+                contentDescription = stringResource(R.string.viewer_info),
+                onClick = onInfo,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ViewerActionIcon(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: (() -> Unit)?,
+) {
+    IconButton(
+        onClick = onClick ?: {},
+        enabled = onClick != null,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = Color.White,
+        )
+    }
 }
 
 private fun shareMediaItem(context: Context, item: MediaItem) {
@@ -344,3 +490,6 @@ private fun ImmersiveSystemBars(visible: Boolean) {
 }
 
 private const val SEEK_INCREMENT_MS = 10_000L
+private const val AUTO_HIDE_MS = 4_000L
+private const val SCRIM_ALPHA = 0.7f
+private const val SNACKBAR_BOTTOM_OFFSET = 96

@@ -3,9 +3,11 @@ package com.barackilic.gallery.core.di
 import com.barackilic.gallery.data.mediastore.MediaStoreSource
 import com.barackilic.gallery.data.mediastore.TrashMediaActions
 import com.barackilic.gallery.data.repository.AlbumRepositoryImpl
+import com.barackilic.gallery.data.repository.FavoritesRepositoryImpl
 import com.barackilic.gallery.data.repository.MediaRepositoryImpl
 import com.barackilic.gallery.data.repository.TrashRepositoryImpl
 import com.barackilic.gallery.domain.repository.AlbumRepository
+import com.barackilic.gallery.domain.repository.FavoritesRepository
 import com.barackilic.gallery.domain.repository.MediaRepository
 import com.barackilic.gallery.domain.repository.TrashRepository
 import com.barackilic.gallery.ui.albums.AlbumsViewModel
@@ -27,9 +29,10 @@ val appModule = module {
     single<MediaRepository> { MediaRepositoryImpl(get()) }
     single<AlbumRepository> { AlbumRepositoryImpl(get()) }
     single<TrashRepository> { TrashRepositoryImpl(get()) }
+    single<FavoritesRepository> { FavoritesRepositoryImpl(androidContext()) }
     viewModel { params -> PhotosViewModel(get(), params.getOrNull<Long>()) }
     viewModel { AlbumsViewModel(get()) }
     viewModel { params -> BucketPhotosViewModel(get(), params.get<Long>()) }
-    viewModel { params -> ViewerViewModel(get(), get(), params.getOrNull<Long>()) }
+    viewModel { params -> ViewerViewModel(get(), get(), get(), params.getOrNull<Long>()) }
     viewModel { TrashViewModel(get(), get()) }
 }

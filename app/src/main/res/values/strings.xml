@@ -58,4 +58,10 @@
     <string name="trash_delete_forever">Kalıcı olarak sil</string>
     <string name="trash_send_to">Çöp kutusuna taşı</string>
     <string name="trash_clear_selection">Seçimi temizle</string>
+
+    <string name="viewer_favorite">Favorilere ekle</string>
+    <string name="viewer_unfavorite">Favorilerden çıkar</string>
+    <string name="viewer_edit">Düzenle</string>
+    <string name="viewer_info">Bilgi</string>
+    <string name="coming_soon">Bu özellik yakında eklenecek</string>
 </resources>

@@ -126,9 +126,15 @@ Her adım sonunda manuel test edilebilir. Her adım kendi commit'i. Kullanıcı 
 - `BucketPhotosScreen` artık `ui/albums/` altında (eski `ui.photos.BucketPhotosScreen` silindi); navigasyon import güncel
 - **Test:** Kamera/Screenshots gibi farklı albümlerde subtitle doğru, sıralama her seçenekte yeniden yükler, grup toggle açılınca header'lar gelir, pinch L24..L5 geçişi sorunsuz
 
-### Adım 6 — Viewer (foto) redesign
-- Minimal top bar + alt action bar (share/fav/edit/trash/info), scrim gradient, otomatik gizleme
-- **Test:** Pinch zoom + pan + bar toggle akıcı
+### Adım 6 — Viewer (foto) redesign ✅ (2026-06-24)
+- Top bar: back + share. Heart ve overflow 3-nokta yok (heart bottom bar'da yeterli, kullanıcı kararı; overflow için anlamlı action yoktu)
+- Bottom action bar: share / heart / edit / trash / info — 5 ikon `SpaceEvenly`. Edit ve Info no-op + snackbar "Bu özellik yakında eklenecek" (gerçek davranışlar: Edit v0.4, Info Adım 10/EXIF)
+- Video sayfasında bottom bar gizli (`currentItem?.type != MediaType.Video`) — PlayerView kendi seekbar+kontrol bar'ını aynı pozisyonda gösteriyor, çakışma oluşturuyordu. Adım 7'de PlayerView controller'ı yerine custom bar gelecek
+- Scrim: üstte `Color.Black 0.7→Transparent` dikey gradient, altta tersi. Bar Box arkasına `background(Brush)` ile uygulanır; `statusBarsPadding()` / `navigationBarsPadding()` insetler içinden geçer
+- Auto-hide: `LaunchedEffect(systemBarsVisible)` — true olunca 4sn `delay` → false. Tap-toggle ile birlikte. Video sayfasında `onVideoPageShown = true` zaten var; auto-hide oradan da tetiklenir (PlayerView kendi kontrollerini gösterir)
+- Favoriler: `FavoritesRepository` (domain interface) + `FavoritesRepositoryImpl` (DataStore Preferences, `Set<String>` olarak mediaId'ler). Yeni dep: `androidx.datastore:datastore-preferences:1.2.1`. ViewerViewModel `currentMediaId` MutableStateFlow + `isCurrentFavorite` combine + `toggleCurrentFavorite()`
+- Photos/Albums grid'lerinde favori rozeti yok (Adım 11 arama filtresine bırakıldı — kullanıcı kararı: "şimdi yalnız viewer'da toggle")
+- **Test:** Pinch zoom + pan + tap toggle akıcı, heart tap'i kalıcı, 4sn idle'da bar fade-out, scrim açık fotolarda ikonları okutur
 
 ### Adım 7 — Viewer (video) redesign
 - Alt seekbar + play/pause + ±10sn, yeni stil
